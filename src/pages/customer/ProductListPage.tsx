@@ -331,6 +331,22 @@ export const ProductListPage: React.FC = () => {
                           <span className="font-semibold text-zinc-700 text-xs">{prod.rating}</span>
                           <span className="text-zinc-400 text-[10px]">({prod.soldCount})</span>
                         </div>
+                        <div className="mt-1.5">
+                          {(() => {
+                            const totalStock = prod.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) ?? 0;
+                            return (
+                              <span
+                                className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                                  totalStock > 0
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                }`}
+                              >
+                                {totalStock > 0 ? `Còn ${totalStock} sản phẩm` : 'Hết hàng'}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
 
                       <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">

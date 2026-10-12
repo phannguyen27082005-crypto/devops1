@@ -103,7 +103,6 @@
       "categoryId": "cat-1",
       "brand": "Maison Studio",
       "price": 320000,
-      "salePrice": 249000,
       "description": "Áo thun form relaxed-fit từ chất liệu 100% cotton định lượng 260gsm dày dặn, thấm hút mồ hôi tốt, giữ form dáng hoàn hảo sau nhiều lần giặt.",
       "details": [
         "100% Cotton chải kỹ cao cấp",
@@ -177,7 +176,7 @@
       "soldCount": 320,
       "isFeatured": true,
       "isNewArrival": false,
-      "isFlashSale": true,
+      "isFlashSale": false,
       "status": "ACTIVE",
       "createdAt": "2025-01-10T10:00:00Z"
     },
@@ -188,7 +187,6 @@
       "categoryId": "cat-1",
       "brand": "Maison Bespoke",
       "price": 490000,
-      "salePrice": 389000,
       "description": "Áo sơ mi vải Oxford dệt thoi dầy dặn, thoáng khí, cổ áo đứng form chuẩn phong cách lịch lãm, phù hợp môi trường công sở lẫn các sự kiện thường nhật.",
       "details": [
         "Vải Oxford Cotton 100%",
@@ -254,7 +252,6 @@
       "categoryId": "cat-2",
       "brand": "Maison Tailored",
       "price": 580000,
-      "salePrice": 479000,
       "description": "Quần âu xếp ly nhẹ, dáng tapered ôm dần xuống cổ chân tạo nét hiện đại. Vải wool pha co giãn nhẹ, giữ ly phẳng phiu suốt cả ngày dài.",
       "details": [
         "Poly Rayon pha Spandex 5%",
@@ -310,7 +307,8 @@
       "isFeatured": true,
       "isNewArrival": false,
       "status": "ACTIVE",
-      "createdAt": "2025-01-08T14:20:00Z"
+      "createdAt": "2025-01-08T14:20:00Z",
+      "isFlashSale": false
     },
     {
       "id": "prod-4",
@@ -579,7 +577,6 @@
       "categoryId": "cat-4",
       "brand": "Maison Sport",
       "price": 790000,
-      "salePrice": 650000,
       "description": "Bomber jacket chất liệu trượt nước nhẹ, bo chun cổ và tay áo co giãn êm ái, thích hợp cho thời tiết se lạnh và những chuyến vi vu dạo phố.",
       "details": [
         "Nylon trượt nước DWR",
@@ -626,7 +623,8 @@
       "isFeatured": false,
       "isNewArrival": true,
       "status": "ACTIVE",
-      "createdAt": "2025-01-15T09:00:00Z"
+      "createdAt": "2025-01-15T09:00:00Z",
+      "isFlashSale": false
     },
     {
       "id": "prod-9",
@@ -812,7 +810,6 @@
       "categoryId": "cat-6",
       "brand": "Maison Leather",
       "price": 350000,
-      "salePrice": 280000,
       "description": "Dây nịt da bò thật 100% nguyên tấm bền bỉ, mặt khóa hợp kim mạ titan phay xước chống gỉ tạo phong cách nam tính sang trọng.",
       "details": [
         "100% Da bò thật nguyên tấm",
@@ -849,7 +846,8 @@
       "isFeatured": false,
       "isNewArrival": false,
       "status": "ACTIVE",
-      "createdAt": "2025-01-09T10:00:00Z"
+      "createdAt": "2025-01-09T10:00:00Z",
+      "isFlashSale": false
     },
     {
       "id": "prod-13",

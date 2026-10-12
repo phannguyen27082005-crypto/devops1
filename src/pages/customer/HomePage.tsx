@@ -24,11 +24,19 @@ export const HomePage: React.FC = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [flashSaleProducts, setFlashSaleProducts] = useState<Product[]>([]);
+  const [allProducts10, setAllProducts10] = useState<Product[]>([]);
+  const [curatedFilter, setCuratedFilter] = useState<'ALL' | 'SALE' | 'REGULAR'>('ALL');
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const { addToCart } = useCart();
   const { success } = useNotification();
+
+  const getStock = (p: Product) => {
+    return p.variants && p.variants.length > 0
+      ? p.variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+      : 0;
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -36,7 +44,7 @@ export const HomePage: React.FC = () => {
         const [bannerRes, catRes, prodRes] = await Promise.all([
           api.banners.getAll(),
           api.categories.getAll(),
-          api.products.getAll({ limit: 24 }),
+          api.products.getAll({ limit: 30 }),
         ]);
 
         if (bannerRes.success && bannerRes.data) setBanners(bannerRes.data);
@@ -46,6 +54,19 @@ export const HomePage: React.FC = () => {
           setFeaturedProducts(prods.filter(p => p.isFeatured));
           setNewArrivals(prods.filter(p => p.isNewArrival));
           setFlashSaleProducts(prods.filter(p => p.isFlashSale || (p.salePrice && p.salePrice < p.price)));
+
+          // Pick exactly 10 products: mix of discounted and non-discounted
+          const saleProds = prods.filter(p => p.salePrice && p.salePrice < p.price);
+          const regularProds = prods.filter(p => !p.salePrice || p.salePrice >= p.price);
+          const selected10: Product[] = [
+            ...saleProds.slice(0, 5),
+            ...regularProds.slice(0, 5),
+          ];
+          if (selected10.length < 10) {
+            const remainder = prods.filter(p => !selected10.some(s => s.id === p.id));
+            selected10.push(...remainder.slice(0, 10 - selected10.length));
+          }
+          setAllProducts10(selected10.slice(0, 10));
         }
       } catch (err) {
         console.error('Error fetching home data:', err);
@@ -276,6 +297,31 @@ export const HomePage: React.FC = () => {
                             </span>
                           )}
                         </div>
+
+                        {/* Stock status badge */}
+                        <div className="mt-2 flex items-center">
+                          {(() => {
+                            const stock = getStock(prod);
+                            return (
+                              <span
+                                className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                  stock > 10
+                                    ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
+                                    : stock > 0
+                                    ? 'bg-amber-950/80 text-amber-400 border border-amber-800'
+                                    : 'bg-rose-950/80 text-rose-400 border border-rose-800'
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    stock > 10 ? 'bg-emerald-400' : stock > 0 ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'
+                                  }`}
+                                />
+                                {stock > 0 ? `Còn ${stock} sản phẩm trong kho` : 'Hết hàng'}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
 
                       <button
@@ -348,6 +394,31 @@ export const HomePage: React.FC = () => {
                     <span className="font-semibold text-zinc-700 text-xs">{prod.rating}</span>
                     <span className="text-zinc-400 text-[11px]">({prod.soldCount} đã bán)</span>
                   </div>
+
+                  {/* Stock status badge */}
+                  <div className="mt-1.5 flex items-center">
+                    {(() => {
+                      const stock = getStock(prod);
+                      return (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            stock > 10
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : stock > 0
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              stock > 10 ? 'bg-emerald-500' : stock > 0 ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'
+                            }`}
+                          />
+                          {stock > 0 ? `Còn ${stock} sản phẩm` : 'Hết hàng'}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">
@@ -368,7 +439,162 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. BRAND STORY BANNER */}
+      {/* 5. PHẦN TẤT CẢ SẢN PHẨM: 10 SẢN PHẨM CHỌN LỌC (GỒM GIẢM GIÁ & NGUYÊN GIÁ, HIỂN THỊ TỒN KHO) */}
+      {allProducts10.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-br from-zinc-50 via-white to-zinc-50 border border-zinc-200 rounded-3xl p-6 sm:p-10 shadow-sm space-y-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-200 pb-6">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-950 text-white shadow-sm mb-2">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" /> BỘ SƯU TẬP 10 SẢN PHẨM TIÊU BIỂU
+                </div>
+                <h2 className="font-serif-title text-2xl sm:text-4xl font-bold text-zinc-950">
+                  Tất Cả Sản Phẩm Chọn Lọc (10 Mẫu)
+                </h2>
+                <p className="text-xs sm:text-sm text-zinc-500 mt-1 max-w-xl">
+                  Gồm 5 mẫu ưu đãi giảm giá và 5 mẫu nguyên giá thời thượng, hiển thị trực quan số lượng tồn kho của từng sản phẩm.
+                </p>
+              </div>
+
+              {/* Tabs phân loại nhanh */}
+              <div className="flex items-center gap-1.5 bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200 text-xs font-semibold">
+                <button
+                  onClick={() => setCuratedFilter('ALL')}
+                  className={`px-3.5 py-1.5 rounded-xl transition-all ${
+                    curatedFilter === 'ALL'
+                      ? 'bg-zinc-950 text-white shadow-sm'
+                      : 'text-zinc-600 hover:text-zinc-950'
+                  }`}
+                >
+                  Tất Cả ({allProducts10.length})
+                </button>
+                <button
+                  onClick={() => setCuratedFilter('SALE')}
+                  className={`px-3.5 py-1.5 rounded-xl transition-all ${
+                    curatedFilter === 'SALE'
+                      ? 'bg-rose-600 text-white shadow-sm font-bold'
+                      : 'text-zinc-600 hover:text-rose-600'
+                  }`}
+                >
+                  Giảm Giá ({allProducts10.filter(p => p.salePrice && p.salePrice < p.price).length})
+                </button>
+                <button
+                  onClick={() => setCuratedFilter('REGULAR')}
+                  className={`px-3.5 py-1.5 rounded-xl transition-all ${
+                    curatedFilter === 'REGULAR'
+                      ? 'bg-zinc-950 text-white shadow-sm font-bold'
+                      : 'text-zinc-600 hover:text-zinc-950'
+                  }`}
+                >
+                  Không Giảm Giá ({allProducts10.filter(p => !p.salePrice || p.salePrice >= p.price).length})
+                </button>
+              </div>
+            </div>
+
+            {/* Grid 10 sản phẩm (5 cột x 2 hàng trên desktop) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+              {allProducts10
+                .filter(p => {
+                  if (curatedFilter === 'SALE') return p.salePrice && p.salePrice < p.price;
+                  if (curatedFilter === 'REGULAR') return !p.salePrice || p.salePrice >= p.price;
+                  return true;
+                })
+                .map(prod => {
+                  const isSale = Boolean(prod.salePrice && prod.salePrice < prod.price);
+                  const discountPercent = isSale
+                    ? Math.round(((prod.price - prod.salePrice!) / prod.price) * 100)
+                    : null;
+                  const stock = getStock(prod);
+
+                  return (
+                    <div
+                      key={prod.id}
+                      className="group flex flex-col bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+                    >
+                      <div className="relative aspect-[3/4] bg-zinc-100 overflow-hidden">
+                        <Link to={`/products/${prod.slug}`}>
+                          <img
+                            src={prod.images[0]}
+                            alt={prod.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </Link>
+                        {isSale ? (
+                          <span className="absolute top-2.5 left-2.5 bg-rose-600 text-white font-extrabold text-[10px] sm:text-xs px-2.5 py-1 rounded-full shadow-md">
+                            -{discountPercent}% GIẢM
+                          </span>
+                        ) : (
+                          <span className="absolute top-2.5 left-2.5 bg-zinc-900/80 backdrop-blur-sm text-zinc-100 font-semibold text-[10px] px-2.5 py-0.5 rounded-full shadow-sm">
+                            NGUYÊN GIÁ
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">
+                            {prod.brand}
+                          </span>
+                          <Link to={`/products/${prod.slug}`}>
+                            <h3 className="text-xs sm:text-sm font-bold text-zinc-900 group-hover:text-black transition-colors line-clamp-1">
+                              {prod.name}
+                            </h3>
+                          </Link>
+
+                          {/* Số lượng tồn kho còn bao nhiêu */}
+                          <div className="pt-0.5">
+                            <span
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                                stock > 10
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : stock > 0
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  stock > 10 ? 'bg-emerald-500' : stock > 0 ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'
+                                }`}
+                              />
+                              {stock > 0 ? `Còn ${stock} sản phẩm` : 'Hết hàng'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">
+                          <div>
+                            <p
+                              className={`font-mono font-bold text-xs sm:text-sm ${
+                                isSale ? 'text-rose-600' : 'text-zinc-950'
+                              }`}
+                            >
+                              {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
+                            </p>
+                            {isSale && (
+                              <p className="font-mono text-[10px] text-zinc-400 line-through">
+                                {prod.price.toLocaleString('vi-VN')}đ
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleQuickAdd(prod)}
+                            className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-950 hover:text-white text-zinc-800 transition-colors"
+                            title="Thêm nhanh vào giỏ"
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 6. BRAND STORY BANNER */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="rounded-3xl overflow-hidden bg-zinc-950 text-white relative p-8 sm:p-14 lg:p-20 shadow-2xl flex flex-col justify-center items-center text-center">
           <div className="max-w-2xl space-y-4 relative z-10">

@@ -218,7 +218,6 @@ export const INITIAL_PRODUCTS: ProductData[] = [
     categoryId: 'cat-1',
     brand: 'Maison Studio',
     price: 320000,
-    salePrice: 249000,
     description: 'Áo thun form relaxed-fit từ chất liệu 100% cotton định lượng 260gsm dày dặn, thấm hút mồ hôi tốt, giữ form dáng hoàn hảo sau nhiều lần giặt.',
     details: ['100% Cotton chải kỹ cao cấp', 'Định lượng 260gsm dày dặn', 'Cổ bo dệt chắc chắn, không bai nhão', 'Công nghệ nhuộm reactive bền màu'],
     images: [
@@ -239,7 +238,7 @@ export const INITIAL_PRODUCTS: ProductData[] = [
     soldCount: 320,
     isFeatured: true,
     isNewArrival: false,
-    isFlashSale: true,
+    isFlashSale: false,
     status: 'ACTIVE',
     createdAt: '2025-01-10T10:00:00Z',
   },
@@ -250,7 +249,6 @@ export const INITIAL_PRODUCTS: ProductData[] = [
     categoryId: 'cat-1',
     brand: 'Maison Bespoke',
     price: 490000,
-    salePrice: 389000,
     description: 'Áo sơ mi vải Oxford dệt thoi dầy dặn, thoáng khí, cổ áo đứng form chuẩn phong cách lịch lãm, phù hợp môi trường công sở lẫn các sự kiện thường nhật.',
     details: ['Vải Oxford Cotton 100%', 'Nút cài ngọc trai cao cấp', 'Đường may chỉ đôi tinh tế', 'Chống nhăn tự nhiên khi ủi nhẹ'],
     images: [
@@ -279,7 +277,6 @@ export const INITIAL_PRODUCTS: ProductData[] = [
     categoryId: 'cat-2',
     brand: 'Maison Tailored',
     price: 580000,
-    salePrice: 479000,
     description: 'Quần âu xếp ly nhẹ, dáng tapered ôm dần xuống cổ chân tạo nét hiện đại. Vải wool pha co giãn nhẹ, giữ ly phẳng phiu suốt cả ngày dài.',
     details: ['Poly Rayon pha Spandex 5%', 'Cạp quần tăng đơ co giãn ẩn 3cm', 'Túi chéo sâu tiện lợi', 'Khóa kéo YKK kim loại'],
     images: [
@@ -420,7 +417,6 @@ export const INITIAL_PRODUCTS: ProductData[] = [
     categoryId: 'cat-4',
     brand: 'Maison Sport',
     price: 790000,
-    salePrice: 650000,
     description: 'Bomber jacket chất liệu trượt nước nhẹ, bo chun cổ và tay áo co giãn êm ái, thích hợp cho thời tiết se lạnh và những chuyến vi vu dạo phố.',
     details: ['Nylon trượt nước DWR', 'Khóa kéo kim loại 2 chiều trơn tru', 'Lớp lót chống tĩnh điện', 'Bo cổ dệt kim dày dặn'],
     images: [
@@ -530,7 +526,6 @@ export const INITIAL_PRODUCTS: ProductData[] = [
     categoryId: 'cat-6',
     brand: 'Maison Leather',
     price: 350000,
-    salePrice: 280000,
     description: 'Dây nịt da bò thật 100% nguyên tấm bền bỉ, mặt khóa hợp kim mạ titan phay xước chống gỉ tạo phong cách nam tính sang trọng.',
     details: ['100% Da bò thật nguyên tấm', 'Bản rộng 3.4cm tiêu chuẩn', 'Khóa kim loại chống hoen gỉ'],
     images: [
