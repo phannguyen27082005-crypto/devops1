@@ -21,8 +21,8 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
       couponCode,
     } = req.body;
 
-    if (!customerName || !customerEmail || !customerPhone || !shippingAddress || !province || !district || !ward) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ thông tin giao hàng' });
+    if (!customerName || !customerPhone || !shippingAddress) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ họ tên, số điện thoại và địa chỉ nhận hàng' });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -93,15 +93,19 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
 
     const totalAmount = Math.max(0, subtotal + shippingFee - discountAmount);
 
+    const finalEmail = customerEmail && customerEmail.trim()
+      ? customerEmail.trim().toLowerCase()
+      : `${customerPhone.trim().replace(/\D/g, '') || 'guest'}@nguyenfashion.vn`;
+
     const newOrder = db.createOrder({
       userId: req.user?.id,
       customerName: customerName.trim(),
-      customerEmail: customerEmail.trim().toLowerCase(),
+      customerEmail: finalEmail,
       customerPhone: customerPhone.trim(),
       shippingAddress: shippingAddress.trim(),
-      province,
-      district,
-      ward,
+      province: province || 'Việt Nam',
+      district: district || '',
+      ward: ward || '',
       note: note ? note.trim() : '',
       subtotal,
       shippingFee,

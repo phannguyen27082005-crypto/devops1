@@ -10,10 +10,10 @@ export const AboutPage: React.FC = () => {
           CÂU CHUYỆN THƯƠNG HIỆU
         </span>
         <h1 className="font-serif-title text-3xl sm:text-5xl font-bold text-zinc-950">
-          Nguyen Fashion Studio
+          Nguyên Fashion Studio
         </h1>
         <p className="text-sm sm:text-base text-zinc-600 leading-relaxed">
-          Được thành lập từ niềm đam mê dành cho nghệ thuật cắt may chuẩn xác và chất liệu sợi tự nhiên nguyên bản, Nguyen mang đến giải pháp thời trang thanh lịch, tối giản và bền bỉ qua năm tháng.
+          Được thành lập từ niềm đam mê dành cho nghệ thuật cắt may chuẩn xác và chất liệu sợi tự nhiên nguyên bản, Nguyên mang đến giải pháp thời trang thanh lịch, tối giản và bền bỉ qua năm tháng.
         </p>
       </div>
 
@@ -21,7 +21,7 @@ export const AboutPage: React.FC = () => {
       <div className="rounded-3xl overflow-hidden aspect-[21/9] bg-zinc-100 shadow-xl">
         <img
           src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600"
-          alt="Nguyen Atelier"
+          alt="Nguyên Atelier"
           className="w-full h-full object-cover"
         />
       </div>

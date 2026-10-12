@@ -321,7 +321,7 @@ class DatabaseEngine {
     ];
 
     const initialSettings: StoreSettings = {
-      storeName: 'Nguyen Fashion Studio',
+      storeName: 'Nguyên Fashion Studio',
       phone: '1900 6868',
       email: 'contact@nguyenfashion.vn',
       address: '158 Đồng Khởi, Bến Nghé, Quận 1, TP. Hồ Chí Minh',
@@ -766,7 +766,8 @@ class DatabaseEngine {
 
   // --- BANNERS ---
   public listBanners(onlyActive = false): BannerData[] {
-    let list = [...this.state.banners];
+    const rawBanners = this.state.banners && this.state.banners.length > 0 ? this.state.banners : INITIAL_BANNERS;
+    let list = [...rawBanners];
     if (onlyActive) {
       list = list.filter(b => b.active);
     }

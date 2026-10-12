@@ -126,7 +126,7 @@ export const AdminLayout: React.FC = () => {
             </div>
             <div>
               <span className="font-bold text-sm tracking-wider text-white uppercase block">
-                Nguyen Admin
+                Nguyên Admin
               </span>
               <span className="text-[10px] uppercase font-semibold text-emerald-400 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Hệ thống quản trị

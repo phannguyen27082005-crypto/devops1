@@ -995,7 +995,7 @@
           "size": "M",
           "color": "Beige Cổ Điển",
           "colorCode": "#d4b996",
-          "stock": 6,
+          "stock": 5,
           "sku": "TRENCH-BEI-M"
         },
         {
@@ -1019,7 +1019,7 @@
       ],
       "rating": 4.9,
       "reviewCount": 16,
-      "soldCount": 55,
+      "soldCount": 56,
       "isFeatured": true,
       "isNewArrival": true,
       "status": "ACTIVE",
@@ -1081,6 +1081,42 @@
     }
   ],
   "orders": [
+    {
+      "customerName": "Phan Nhat Nguyen",
+      "customerEmail": "0901234567@nguyenfashion.vn",
+      "customerPhone": "0901234567",
+      "shippingAddress": "33 Xo Viet Nghe Tinh",
+      "province": "TP. Hồ Chí Minh",
+      "district": "Hai Chau",
+      "ward": "Hoa Thuan Dong",
+      "note": "",
+      "subtotal": 1190000,
+      "shippingFee": 0,
+      "discountAmount": 0,
+      "totalAmount": 1190000,
+      "paymentMethod": "COD",
+      "paymentStatus": "PENDING",
+      "orderStatus": "PENDING",
+      "items": [
+        {
+          "id": "item-1791818584416-mmyn",
+          "orderId": "",
+          "productId": "prod-15",
+          "variantId": "v15-1",
+          "productName": "Áo Khoác Trench Coat Dáng Dài Thu Đông",
+          "size": "M",
+          "color": "Beige Cổ Điển",
+          "price": 1190000,
+          "quantity": 1,
+          "total": 1190000,
+          "imageUrl": "https://images.unsplash.com/photo-1544441893-675973e31985?w=800&auto=format&fit=crop&q=80"
+        }
+      ],
+      "id": "ord-1791818584431",
+      "orderCode": "MS-727999",
+      "createdAt": "2026-10-12T15:23:04.433Z",
+      "updatedAt": "2026-10-12T15:23:04.441Z"
+    },
     {
       "id": "ord-1001",
       "orderCode": "ORD-250101",

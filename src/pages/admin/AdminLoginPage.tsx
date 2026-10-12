@@ -57,7 +57,7 @@ export const AdminLoginPage: React.FC = () => {
             ADMIN LOGIN
           </h1>
           <p className="mt-2 text-xs text-zinc-400 font-medium tracking-wide uppercase">
-            Cổng Đăng Nhập Quản Trị Hệ Thống Nguyen Fashion
+            Cổng Đăng Nhập Quản Trị Hệ Thống Nguyên Fashion
           </p>
         </div>
 

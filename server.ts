@@ -38,7 +38,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   const sqlStatus = await checkSqlConnection();
   res.json({
     status: 'ok',
-    store: 'Nguyen Fashion E-Commerce',
+    store: 'Nguyên Fashion E-Commerce',
     environment: process.env.NODE_ENV || 'development',
     database: {
       engine: 'Microsoft SQL Server',

@@ -16,14 +16,14 @@ import { api } from '../../services/api';
 export const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const {
-    items,
+    items = [],
     updateQuantity,
     removeFromCart,
-    subtotal,
-    discountAmount,
-    couponCode,
-    shippingFee,
-    total,
+    subtotal = 0,
+    discountAmount = 0,
+    couponCode = '',
+    shippingFee = 0,
+    total = 0,
     applyCoupon,
     removeCoupon,
   } = useCart();
@@ -32,18 +32,19 @@ export const CartPage: React.FC = () => {
   const [applying, setApplying] = useState(false);
   const { success, error } = useNotification();
 
+  const formatVND = (num: any): string => {
+    const val = Number(num);
+    return isNaN(val) ? '0' : val.toLocaleString('vi-VN');
+  };
+
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputCoupon.trim()) return;
     setApplying(true);
     try {
-      const res = await api.coupons.apply(inputCoupon.trim(), subtotal);
-      if (res.success && res.data) {
-        applyCoupon(res.data.code, res.data.discountAmount);
-        success(`Áp dụng mã giảm giá ${res.data.code} thành công! Giảm ${res.data.discountAmount.toLocaleString('vi-VN')}đ`);
+      const ok = await applyCoupon(inputCoupon.trim());
+      if (ok) {
         setInputCoupon('');
-      } else {
-        error(res.message || 'Mã giảm giá không hợp lệ');
       }
     } catch (err: any) {
       error(err.message || 'Không thể áp dụng mã');
@@ -53,8 +54,9 @@ export const CartPage: React.FC = () => {
   };
 
   const freeShippingThreshold = 500000;
-  const remainingForFreeShip = Math.max(0, freeShippingThreshold - subtotal);
-  const freeShipPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
+  const currentSubtotal = Number(subtotal) || 0;
+  const remainingForFreeShip = Math.max(0, freeShippingThreshold - currentSubtotal);
+  const freeShipPercent = Math.min(100, Math.round((currentSubtotal / freeShippingThreshold) * 100));
 
   if (items.length === 0) {
     return (
@@ -98,7 +100,7 @@ export const CartPage: React.FC = () => {
             </span>
           ) : (
             <span>
-              Mua thêm <strong className="text-rose-600">{remainingForFreeShip.toLocaleString('vi-VN')}đ</strong> để được <strong>Freeship</strong> (Đơn từ 500k)
+              Mua thêm <strong className="text-rose-600">{formatVND(remainingForFreeShip)}đ</strong> để được <strong>Freeship</strong> (Đơn từ 500k)
             </span>
           )}
         </div>
@@ -115,71 +117,76 @@ export const CartPage: React.FC = () => {
         {/* Left: Items List */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm divide-y divide-zinc-100">
-            {items.map(item => (
-              <div
-                key={item.variantId}
-                className="p-4 sm:p-5 flex items-center justify-between gap-4 text-xs"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-20 h-24 object-cover rounded-xl border border-zinc-200 shrink-0"
-                  />
-                  <div className="space-y-1">
-                    <Link
-                      to={`/products/${item.slug}`}
-                      className="font-bold text-sm text-zinc-950 hover:underline line-clamp-1"
+            {items.map(item => {
+              const displayName = item.productName || (item as any).name || 'Sản phẩm';
+              const itemKey = item.id || item.variantId || `${item.productId}_${item.size}_${item.color}`;
+              const itemPrice = item.price || 0;
+              return (
+                <div
+                  key={itemKey}
+                  className="p-4 sm:p-5 flex items-center justify-between gap-4 text-xs"
+                >
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={item.image}
+                      alt={displayName}
+                      className="w-20 h-24 object-cover rounded-xl border border-zinc-200 shrink-0"
+                    />
+                    <div className="space-y-1">
+                      <Link
+                        to={`/products/${item.slug}`}
+                        className="font-bold text-sm text-zinc-950 hover:underline line-clamp-1"
+                      >
+                        {displayName}
+                      </Link>
+                      <p className="text-zinc-500">
+                        Phân loại: <strong className="text-zinc-800">{item.size}</strong> • <strong className="text-zinc-800">{item.color}</strong>
+                      </p>
+                      <p className="font-mono font-bold text-xs text-zinc-900">
+                        {formatVND(itemPrice)}đ
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    {/* Quantity */}
+                    <div className="flex items-center border border-zinc-300 rounded-xl bg-white overflow-hidden">
+                      <button
+                        onClick={() => updateQuantity(itemKey, item.quantity - 1)}
+                        className="px-2.5 py-1 text-zinc-600 hover:bg-zinc-100 font-bold"
+                      >
+                        -
+                      </button>
+                      <span className="px-3 py-1 font-mono font-bold text-zinc-900">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(itemKey, item.quantity + 1)}
+                        className="px-2.5 py-1 text-zinc-600 hover:bg-zinc-100 font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    {/* Subtotal */}
+                    <div className="text-right w-24 hidden sm:block">
+                      <p className="font-mono font-bold text-sm text-zinc-950">
+                        {formatVND(itemPrice * item.quantity)}đ
+                      </p>
+                    </div>
+
+                    {/* Remove */}
+                    <button
+                      onClick={() => removeFromCart(itemKey)}
+                      className="p-2 text-zinc-400 hover:text-rose-600 transition-colors"
+                      title="Xóa khỏi giỏ"
                     >
-                      {item.name}
-                    </Link>
-                    <p className="text-zinc-500">
-                      Phân loại: <strong className="text-zinc-800">{item.size}</strong> • <strong className="text-zinc-800">{item.color}</strong>
-                    </p>
-                    <p className="font-mono font-bold text-xs text-zinc-900">
-                      {item.price.toLocaleString('vi-VN')}đ
-                    </p>
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-4">
-                  {/* Quantity */}
-                  <div className="flex items-center border border-zinc-300 rounded-xl bg-white overflow-hidden">
-                    <button
-                      onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                      className="px-2.5 py-1 text-zinc-600 hover:bg-zinc-100 font-bold"
-                    >
-                      -
-                    </button>
-                    <span className="px-3 py-1 font-mono font-bold text-zinc-900">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                      className="px-2.5 py-1 text-zinc-600 hover:bg-zinc-100 font-bold"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* Subtotal */}
-                  <div className="text-right w-24 hidden sm:block">
-                    <p className="font-mono font-bold text-sm text-zinc-950">
-                      {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                    </p>
-                  </div>
-
-                  {/* Remove */}
-                  <button
-                    onClick={() => removeFromCart(item.variantId)}
-                    className="p-2 text-zinc-400 hover:text-rose-600 transition-colors"
-                    title="Xóa khỏi giỏ"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="flex justify-between items-center pt-2">
@@ -205,7 +212,7 @@ export const CartPage: React.FC = () => {
                 <div>
                   <span className="font-bold font-mono text-emerald-800">{couponCode}</span>
                   <p className="text-emerald-700 text-[11px]">
-                    Giảm -{discountAmount.toLocaleString('vi-VN')}đ
+                    Giảm -{formatVND(discountAmount)}đ
                   </p>
                 </div>
                 <button
@@ -245,7 +252,7 @@ export const CartPage: React.FC = () => {
               <div className="flex justify-between text-zinc-600">
                 <span>Tiền hàng:</span>
                 <span className="font-mono text-zinc-900 font-bold">
-                  {subtotal.toLocaleString('vi-VN')}đ
+                  {formatVND(subtotal)}đ
                 </span>
               </div>
 
@@ -255,7 +262,7 @@ export const CartPage: React.FC = () => {
                   {shippingFee === 0 ? (
                     <span className="text-emerald-600 font-bold">Miễn phí</span>
                   ) : (
-                    `${shippingFee.toLocaleString('vi-VN')}đ`
+                    `${formatVND(shippingFee)}đ`
                   )}
                 </span>
               </div>
@@ -264,7 +271,7 @@ export const CartPage: React.FC = () => {
                 <div className="flex justify-between text-emerald-600">
                   <span>Giảm giá voucher:</span>
                   <span className="font-mono font-bold">
-                    -{discountAmount.toLocaleString('vi-VN')}đ
+                    -{formatVND(discountAmount)}đ
                   </span>
                 </div>
               )}
@@ -272,7 +279,7 @@ export const CartPage: React.FC = () => {
               <div className="pt-3 border-t border-zinc-200 flex justify-between items-baseline">
                 <span className="font-bold text-sm text-zinc-950">Tổng thanh toán:</span>
                 <span className="font-mono font-extrabold text-xl text-rose-600">
-                  {total.toLocaleString('vi-VN')}đ
+                  {formatVND(total !== undefined && total !== null ? total : (subtotal + shippingFee - discountAmount))}đ
                 </span>
               </div>
             </div>

@@ -6,7 +6,7 @@ import { useNotification } from '../../context/NotificationContext';
 
 export const AdminSettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<StoreSettings>({
-    storeName: 'Nguyen Fashion Studio',
+    storeName: 'Nguyên Fashion Studio',
     phone: '1900 6868',
     email: 'contact@nguyenfashion.vn',
     address: '158 Đồng Khởi, Bến Nghé, Quận 1, TP. Hồ Chí Minh',

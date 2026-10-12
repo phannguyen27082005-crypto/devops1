@@ -18,7 +18,7 @@ export const ContactPage: React.FC = () => {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 space-y-12">
       <div className="text-center space-y-3 max-w-xl mx-auto">
         <h1 className="font-serif-title text-3xl sm:text-4xl font-bold text-zinc-950">
-          Liên Hệ Nguyen
+          Liên Hệ Nguyên Fashion
         </h1>
         <p className="text-xs sm:text-sm text-zinc-500">
           Chúng tôi luôn sẵn sàng lắng nghe mọi thắc mắc và đóng góp ý kiến từ quý khách
@@ -29,7 +29,7 @@ export const ContactPage: React.FC = () => {
         {/* Contact Info */}
         <div className="bg-zinc-950 text-white rounded-3xl p-8 space-y-8 shadow-xl">
           <div>
-            <h3 className="font-serif-title text-xl font-bold">Nguyen Flagship Showroom</h3>
+            <h3 className="font-serif-title text-xl font-bold">Nguyên Flagship Showroom</h3>
             <p className="text-xs text-zinc-400 mt-1">Trải nghiệm không gian mua sắm trực tiếp</p>
           </div>
 

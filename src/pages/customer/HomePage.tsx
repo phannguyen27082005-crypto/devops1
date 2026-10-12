@@ -120,7 +120,7 @@ export const HomePage: React.FC = () => {
                 to="/products?sale=true"
                 className="px-6 py-4 bg-black/40 hover:bg-black/60 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all border border-white/30 backdrop-blur-sm"
               >
-                Xem Khuyến Mãi
+                Săn Ưu Đãi HOT
               </Link>
             </div>
           </div>
@@ -379,7 +379,7 @@ export const HomePage: React.FC = () => {
               Thời Trang Tối Giản, Đẳng Cấp Vượt Thời Gian
             </h2>
             <p className="text-sm sm:text-base text-zinc-300 leading-relaxed font-normal">
-              Nguyen tin rằng cái đẹp thực sự không cần phô trương. Chúng tôi chọn lọc những thước vải linen, lụa và cashmere tự nhiên cao cấp nhất, chăm chút từng mũi khâu để mang đến cho bạn trải nghiệm mặc êm ái và tôn vinh phong thái tự tin.
+              Nguyên tin rằng cái đẹp thực sự không cần phô trương. Chúng tôi chọn lọc những thước vải linen, lụa và cashmere tự nhiên cao cấp nhất, chăm chút từng mũi khâu để mang đến cho bạn trải nghiệm mặc êm ái và tôn vinh phong thái tự tin.
             </p>
             <div className="pt-4">
               <Link

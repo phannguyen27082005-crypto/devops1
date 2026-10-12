@@ -39,15 +39,15 @@ export const CustomerLayout: React.FC = () => {
   };
 
   const navLinks = [
-    { label: 'Trang chủ', path: '/' },
-    { label: 'Sản phẩm', path: '/products' },
-    { label: 'Áo', path: '/category/ao' },
-    { label: 'Quần', path: '/category/quan' },
+    { label: 'Trang Chủ', path: '/' },
+    { label: 'Sản Phẩm', path: '/products' },
+    { label: 'Áo Nam & Nữ', path: '/category/ao' },
+    { label: 'Quần Thời Trang', path: '/category/quan' },
     { label: 'Váy & Đầm', path: '/category/vay' },
     { label: 'Áo Khoác', path: '/category/ao-khoac' },
-    { label: 'Khuyến mãi', path: '/products?sale=true', highlight: true },
-    { label: 'Về chúng tôi', path: '/about' },
-    { label: 'Liên hệ', path: '/contact' },
+    { label: 'Khuyến Mãi HOT', path: '/products?sale=true', highlight: true },
+    { label: 'Về Chúng Tôi', path: '/about' },
+    { label: 'Liên Hệ', path: '/contact' },
   ];
 
   return (
@@ -89,16 +89,16 @@ export const CustomerLayout: React.FC = () => {
           <div className="flex-1 lg:flex-initial flex items-center justify-center lg:justify-start">
             <Link to="/" className="flex flex-col items-center lg:items-start group">
               <span className="font-serif-title text-2xl sm:text-3xl tracking-[0.2em] font-bold text-zinc-950 uppercase group-hover:tracking-[0.22em] transition-all">
-                NGUYEN
+                NGUYÊN
               </span>
               <span className="text-[10px] tracking-[0.3em] font-medium text-zinc-400 uppercase -mt-1">
-                HAUTE COUTURE
+                THỜI TRANG CAO CẤP
               </span>
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-sm font-medium">
             {navLinks.slice(0, 7).map(item => {
               const isActive =
                 item.path === '/'
@@ -373,7 +373,7 @@ export const CustomerLayout: React.FC = () => {
             <div className="lg:col-span-2 space-y-4">
               <Link to="/" className="inline-block">
                 <span className="font-serif-title text-2xl tracking-[0.2em] font-bold text-white uppercase">
-                  NGUYEN
+                  NGUYÊN
                 </span>
                 <span className="block text-[10px] tracking-[0.3em] font-medium text-zinc-500 uppercase">
                   STUDIO VIETNAM
@@ -421,7 +421,7 @@ export const CustomerLayout: React.FC = () => {
               <p className="text-xs text-zinc-400 mb-3 leading-relaxed">
                 Đăng ký để nhận voucher 50k và cập nhật các bộ sưu tập mới sớm nhất.
               </p>
-              <form onSubmit={e => { e.preventDefault(); alert('Cảm ơn bạn đã đăng ký nhận bản tin Nguyen!'); }} className="space-y-2">
+              <form onSubmit={e => { e.preventDefault(); alert('Cảm ơn bạn đã đăng ký nhận bản tin Nguyên Fashion!'); }} className="space-y-2">
                 <input
                   type="email"
                   required
@@ -440,7 +440,7 @@ export const CustomerLayout: React.FC = () => {
 
           {/* Copyright & Payment methods */}
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
-            <p>© 2025 NGUYEN Fashion Studio Vietnam. Bảo lưu mọi quyền.</p>
+            <p>© 2025 NGUYÊN Fashion Studio Vietnam. Bảo lưu mọi quyền.</p>
             <div className="flex items-center gap-4 text-zinc-400">
               <span>COD Tiền Mặt</span>
               <span>•</span>

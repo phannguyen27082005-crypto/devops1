@@ -53,7 +53,7 @@ export const CustomerRegisterPage: React.FC = () => {
             Tạo Tài Khoản Mới
           </h1>
           <p className="text-xs text-zinc-500">
-            Trở thành hội viên Nguyen để tích lũy điểm và nhận ưu đãi độc quyền
+            Trở thành hội viên Nguyên Fashion để tích lũy điểm và nhận ưu đãi độc quyền
           </p>
         </div>
 

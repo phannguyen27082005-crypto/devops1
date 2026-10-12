@@ -18,12 +18,14 @@ interface CartContextType {
     discountValue: number;
     discountAmount: number;
   } | null;
+  couponCode?: string;
   applyCoupon: (code: string) => Promise<boolean>;
   removeCoupon: () => void;
   subtotal: number;
   shippingFee: number;
   discountAmount: number;
   totalAmount: number;
+  total: number;
   totalQuantity: number;
 }
 
@@ -106,7 +108,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeFromCart = (cartItemId: string) => {
-    setItems(prev => prev.filter(i => i.id !== cartItemId));
+    setItems(prev => prev.filter(i => i.id !== cartItemId && i.variantId !== cartItemId));
     success('Đã xóa sản phẩm khỏi giỏ hàng');
   };
 
@@ -118,7 +120,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setItems(prev =>
       prev.map(item => {
-        if (item.id === cartItemId) {
+        if (item.id === cartItemId || item.variantId === cartItemId) {
           if (newQuantity > item.maxStock) {
             error(`Số lượng vượt quá tồn kho hiện có (${item.maxStock})`);
             return { ...item, quantity: item.maxStock };
@@ -208,6 +210,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         shippingFee,
         discountAmount,
         totalAmount,
+        total: totalAmount,
+        couponCode: appliedCoupon?.code || '',
         totalQuantity,
       }}
     >

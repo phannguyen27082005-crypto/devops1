@@ -16,6 +16,22 @@ import { useNotification } from '../../context/NotificationContext';
 import { api } from '../../services/api';
 import { PaymentMethod } from '../../types';
 
+const VIETNAM_PROVINCES = [
+  'TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ',
+  'An Giang', 'Bà Rịa - Vũng Tàu', 'Bắc Giang', 'Bắc Kạn', 'Bạc Liêu',
+  'Bắc Ninh', 'Bến Tre', 'Bình Định', 'Bình Dương', 'Bình Phước',
+  'Bình Thuận', 'Cà Mau', 'Cao Bằng', 'Đắk Lắk', 'Đắk Nông',
+  'Điện Biên', 'Đồng Nai', 'Đồng Tháp', 'Gia Lai', 'Hà Giang',
+  'Hà Nam', 'Hà Tĩnh', 'Hải Dương', 'Hậu Giang', 'Hòa Bình',
+  'Hưng Yên', 'Khánh Hòa', 'Kiên Giang', 'Kon Tum', 'Lai Châu',
+  'Lâm Đồng', 'Lạng Sơn', 'Lào Cai', 'Long An', 'Nam Định',
+  'Nghệ An', 'Ninh Bình', 'Ninh Thuận', 'Phú Thọ', 'Phú Yên',
+  'Quảng Bình', 'Quảng Nam', 'Quảng Ngãi', 'Quảng Ninh', 'Quảng Trị',
+  'Sóc Trăng', 'Sơn La', 'Tây Ninh', 'Thái Bình', 'Thái Nguyên',
+  'Thanh Hóa', 'Thừa Thiên Huế', 'Tiền Giang', 'Trà Vinh', 'Tuyên Quang',
+  'Vĩnh Long', 'Vĩnh Phúc', 'Yên Bái',
+];
+
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { items, subtotal, discountAmount, couponCode, shippingFee, total, clearCart } = useCart();
@@ -26,15 +42,33 @@ export const CheckoutPage: React.FC = () => {
     customerName: user?.name || '',
     customerPhone: user?.phone || '',
     customerEmail: user?.email || '',
-    province: 'Hồ Chí Minh',
-    district: 'Quận 1',
-    ward: 'Phường Bến Nghé',
-    shippingAddress: user?.address || '',
+    province: 'TP. Hồ Chí Minh',
+    district: '',
+    ward: '',
+    shippingAddress: (user as any)?.address || '',
     note: '',
   });
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [submitting, setSubmitting] = useState(false);
+
+  // Pre-fill user data if user logs in
+  React.useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        customerName: prev.customerName || user.name || '',
+        customerPhone: prev.customerPhone || user.phone || '',
+        customerEmail: prev.customerEmail || user.email || '',
+        shippingAddress: prev.shippingAddress || (user as any).address || '',
+      }));
+    }
+  }, [user]);
+
+  const formatVND = (num: any): string => {
+    const val = Number(num);
+    return isNaN(val) ? '0' : val.toLocaleString('vi-VN');
+  };
 
   if (items.length === 0) {
     return (
@@ -55,8 +89,19 @@ export const CheckoutPage: React.FC = () => {
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.customerName.trim() || !formData.customerPhone.trim() || !formData.shippingAddress.trim()) {
-      error('Vui lòng điền đầy đủ họ tên, số điện thoại và địa chỉ nhận hàng');
+    if (!formData.customerName.trim()) {
+      error('Vui lòng nhập Họ và tên người nhận hàng');
+      return;
+    }
+
+    const cleanPhone = formData.customerPhone.trim().replace(/\D/g, '');
+    if (!formData.customerPhone.trim() || cleanPhone.length < 10) {
+      error('Vui lòng nhập Số điện thoại nhận hàng hợp lệ (ít nhất 10 số)');
+      return;
+    }
+
+    if (!formData.shippingAddress.trim()) {
+      error('Vui lòng nhập Địa chỉ cụ thể nhận hàng (Số nhà, tên đường...)');
       return;
     }
 
@@ -67,8 +112,8 @@ export const CheckoutPage: React.FC = () => {
         customerPhone: formData.customerPhone.trim(),
         customerEmail: formData.customerEmail.trim(),
         province: formData.province,
-        district: formData.district,
-        ward: formData.ward,
+        district: formData.district.trim(),
+        ward: formData.ward.trim(),
         shippingAddress: formData.shippingAddress.trim(),
         note: formData.note.trim(),
         paymentMethod,
@@ -76,7 +121,7 @@ export const CheckoutPage: React.FC = () => {
         items: items.map(i => ({
           productId: i.productId,
           variantId: i.variantId,
-          productName: i.name,
+          productName: i.productName || (i as any).name || 'Sản phẩm',
           sku: i.sku,
           size: i.size,
           color: i.color,
@@ -123,14 +168,24 @@ export const CheckoutPage: React.FC = () => {
         <div className="lg:col-span-7 space-y-8">
           {/* 1. Customer details */}
           <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4">
-            <h2 className="font-bold text-base text-zinc-950 flex items-center gap-2 border-b border-zinc-100 pb-3">
-              <Truck className="w-4 h-4 text-zinc-600" /> 1. Thông Tin Nhận Hàng
-            </h2>
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h2 className="font-bold text-base text-zinc-950 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-zinc-600" /> 1. Thông Tin Nhận Hàng
+              </h2>
+              <span className="text-[11px] text-rose-500 font-medium">* Bắt buộc điền</span>
+            </div>
+
+            <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-900">
+              <Truck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+              <span>
+                Vui lòng điền chính xác <strong>Số điện thoại</strong> và <strong>Địa chỉ nhận hàng</strong> để nhân viên liên hệ giao hàng tận tay nhanh nhất.
+              </span>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Họ và tên người nhận *
+                  Họ và tên người nhận <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -144,14 +199,14 @@ export const CheckoutPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                  Số điện thoại nhận hàng *
+                  Số điện thoại nhận hàng (10 số) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="tel"
                   required
                   value={formData.customerPhone}
                   onChange={e => setFormData({ ...formData, customerPhone: e.target.value })}
-                  placeholder="0987 654 321"
+                  placeholder="Ví dụ: 0912 345 678"
                   className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
                 />
               </div>
@@ -159,70 +214,70 @@ export const CheckoutPage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                Email nhận hóa đơn & cập nhật lộ trình
+                Email nhận hóa đơn điện tử (Tùy chọn)
               </label>
               <input
                 type="email"
                 value={formData.customerEmail}
                 onChange={e => setFormData({ ...formData, customerEmail: e.target.value })}
-                placeholder="email@example.com"
+                placeholder="email@example.com (để nhận thông báo trạng thái đơn)"
                 className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">Tỉnh / Thành phố *</label>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                  Tỉnh / Thành phố <span className="text-rose-500">*</span>
+                </label>
                 <select
                   value={formData.province}
                   onChange={e => setFormData({ ...formData, province: e.target.value })}
-                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none"
+                  className="w-full px-3 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
                 >
-                  <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                  <option value="Hà Nội">Hà Nội</option>
-                  <option value="Đà Nẵng">Đà Nẵng</option>
-                  <option value="Cần Thơ">Cần Thơ</option>
-                  <option value="Hải Phòng">Hải Phòng</option>
+                  {VIETNAM_PROVINCES.map(prov => (
+                    <option key={prov} value={prov}>{prov}</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">Quận / Huyện *</label>
-                <select
-                  value={formData.district}
-                  onChange={e => setFormData({ ...formData, district: e.target.value })}
-                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none"
-                >
-                  <option value="Quận 1">Quận 1</option>
-                  <option value="Quận 3">Quận 3</option>
-                  <option value="Quận Bình Thạnh">Bình Thạnh</option>
-                  <option value="Quận Ba Đình">Ba Đình</option>
-                  <option value="Quận Hoàn Kiếm">Hoàn Kiếm</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">Phường / Xã *</label>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                  Quận / Huyện / Thị xã
+                </label>
                 <input
                   type="text"
-                  required
+                  value={formData.district}
+                  onChange={e => setFormData({ ...formData, district: e.target.value })}
+                  placeholder="Ví dụ: Quận 1, Cẩm Lệ..."
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                  Phường / Xã / Thị trấn
+                </label>
+                <input
+                  type="text"
                   value={formData.ward}
                   onChange={e => setFormData({ ...formData, ward: e.target.value })}
-                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none"
+                  placeholder="Ví dụ: Phường Bến Nghé..."
+                  className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-zinc-700 mb-1">
-                Địa chỉ cụ thể (Số nhà, tên đường, tòa nhà...) *
+                Địa chỉ chi tiết nhận hàng (Số nhà, tên đường, thôn xóm, tòa nhà...) <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={formData.shippingAddress}
                 onChange={e => setFormData({ ...formData, shippingAddress: e.target.value })}
-                placeholder="Ví dụ: Tòa nhà Landmark 81, 720A Điện Biên Phủ"
+                placeholder="Ví dụ: Số 158 Đường Đồng Khởi, Chung cư Landmark 81..."
                 className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
               />
             </div>
@@ -235,7 +290,7 @@ export const CheckoutPage: React.FC = () => {
                 rows={2}
                 value={formData.note}
                 onChange={e => setFormData({ ...formData, note: e.target.value })}
-                placeholder="Giao hàng giờ hành chính, gọi trước khi giao..."
+                placeholder="Giao hàng giờ hành chính, gọi trước khi giao 15 phút..."
                 className="w-full px-3.5 py-2 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none"
               />
             </div>
@@ -357,33 +412,37 @@ export const CheckoutPage: React.FC = () => {
 
             {/* Items scroll */}
             <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
-              {items.map(item => (
-                <div key={item.variantId} className="flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-12 h-14 rounded-lg object-cover border border-zinc-200 shrink-0"
-                    />
-                    <div>
-                      <p className="font-bold text-zinc-900 line-clamp-1">{item.name}</p>
-                      <span className="text-[11px] text-zinc-500">
-                        {item.size} • {item.color} • x{item.quantity}
-                      </span>
+              {items.map(item => {
+                const displayName = item.productName || (item as any).name || 'Sản phẩm';
+                const itemKey = item.variantId || item.id || `${item.productId}_${item.size}_${item.color}`;
+                return (
+                  <div key={itemKey} className="flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={item.image}
+                        alt={displayName}
+                        className="w-12 h-14 rounded-lg object-cover border border-zinc-200 shrink-0"
+                      />
+                      <div>
+                        <p className="font-bold text-zinc-900 line-clamp-1">{displayName}</p>
+                        <span className="text-[11px] text-zinc-500">
+                          {item.size} • {item.color} • x{item.quantity}
+                        </span>
+                      </div>
                     </div>
+                    <span className="font-mono font-bold text-zinc-950">
+                      {formatVND(item.price * item.quantity)}đ
+                    </span>
                   </div>
-                  <span className="font-mono font-bold text-zinc-950">
-                    {(item.price * item.quantity).toLocaleString('vi-VN')}đ
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Financial summary */}
             <div className="pt-4 border-t border-zinc-100 space-y-2 text-xs">
               <div className="flex justify-between text-zinc-600">
                 <span>Tiền hàng:</span>
-                <span className="font-mono font-bold text-zinc-900">{subtotal.toLocaleString('vi-VN')}đ</span>
+                <span className="font-mono font-bold text-zinc-900">{formatVND(subtotal)}đ</span>
               </div>
               <div className="flex justify-between text-zinc-600">
                 <span>Phí vận chuyển:</span>
@@ -391,20 +450,20 @@ export const CheckoutPage: React.FC = () => {
                   {shippingFee === 0 ? (
                     <span className="text-emerald-600 font-bold">Miễn phí</span>
                   ) : (
-                    `${shippingFee.toLocaleString('vi-VN')}đ`
+                    `${formatVND(shippingFee)}đ`
                   )}
                 </span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-600">
                   <span>Mã khuyến mãi ({couponCode}):</span>
-                  <span className="font-mono font-bold">-{discountAmount.toLocaleString('vi-VN')}đ</span>
+                  <span className="font-mono font-bold">-{formatVND(discountAmount)}đ</span>
                 </div>
               )}
               <div className="pt-3 border-t border-zinc-200 flex justify-between items-baseline">
                 <span className="font-bold text-sm text-zinc-950">Tổng thanh toán:</span>
                 <span className="font-mono font-extrabold text-xl text-rose-600">
-                  {total.toLocaleString('vi-VN')}đ
+                  {formatVND(total !== undefined && total !== null ? total : (subtotal + shippingFee - discountAmount))}đ
                 </span>
               </div>
             </div>

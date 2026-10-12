@@ -71,7 +71,7 @@ export const OrderSuccessPage: React.FC = () => {
           Đặt Hàng Thành Công!
         </h1>
         <p className="text-xs sm:text-sm text-zinc-500 max-w-md mx-auto">
-          Cảm ơn bạn đã tin tưởng lựa chọn Nguyen. Mã đơn hàng của bạn là{' '}
+          Cảm ơn bạn đã tin tưởng lựa chọn Nguyên Fashion. Mã đơn hàng của bạn là{' '}
           <strong className="text-zinc-950 font-mono">#{order.orderCode}</strong>
         </p>
       </div>
