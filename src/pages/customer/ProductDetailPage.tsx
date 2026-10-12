@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Send,
   AlertCircle,
+  ArrowRight,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Product, ProductVariant, Review } from '../../types';
@@ -500,24 +501,43 @@ export const ProductDetailPage: React.FC = () => {
       {/* Related Products Carousel / Grid */}
       {relatedProducts.length > 0 && (
         <section className="pt-12 border-t border-zinc-200">
-          <h2 className="font-serif-title text-2xl font-bold text-zinc-950 mb-6">
-            Có Thể Bạn Cũng Thích
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <h2 className="font-serif-title text-2xl font-bold text-zinc-950">
+              Có Thể Bạn Cũng Thích
+            </h2>
+            <Link
+              to="/products?sale=true"
+              className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 transition-colors w-fit"
+            >
+              Xem sản phẩm giảm giá khác <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            {relatedProducts.map(p => (
-              <div
-                key={p.id}
-                className="group flex flex-col bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm hover:shadow-lg transition-all"
-              >
-                <div className="aspect-[3/4] overflow-hidden bg-zinc-100">
-                  <Link to={`/products/${p.slug}`}>
-                    <img
-                      src={p.images[0]}
-                      alt={p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </Link>
-                </div>
+            {relatedProducts.map(p => {
+              const discount =
+                p.salePrice && p.salePrice < p.price
+                  ? Math.round(((p.price - p.salePrice) / p.price) * 100)
+                  : null;
+
+              return (
+                <div
+                  key={p.id}
+                  className="group flex flex-col bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm hover:shadow-lg transition-all"
+                >
+                  <div className="relative aspect-[3/4] overflow-hidden bg-zinc-100">
+                    <Link to={`/products/${p.slug}`}>
+                      <img
+                        src={p.images[0]}
+                        alt={p.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </Link>
+                    {discount && (
+                      <span className="absolute top-2.5 left-2.5 bg-rose-600 text-white font-extrabold text-[10px] px-2 py-0.5 rounded-full shadow-md">
+                        -{discount}%
+                      </span>
+                    )}
+                  </div>
                 <div className="p-3.5">
                   <Link to={`/products/${p.slug}`}>
                     <h3 className="font-bold text-xs text-zinc-900 group-hover:text-black line-clamp-1">
@@ -529,7 +549,8 @@ export const ProductDetailPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </section>
       )}

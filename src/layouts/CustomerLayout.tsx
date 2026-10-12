@@ -100,9 +100,14 @@ export const CustomerLayout: React.FC = () => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-sm font-medium">
             {navLinks.slice(0, 7).map(item => {
+              const isSaleActive = location.pathname === '/products' && location.search.includes('sale=true');
               const isActive =
-                item.path === '/'
+                item.highlight
+                  ? isSaleActive
+                  : item.path === '/'
                   ? location.pathname === '/'
+                  : item.path === '/products'
+                  ? location.pathname === '/products' && !isSaleActive
                   : location.pathname.startsWith(item.path);
 
               return (
@@ -111,7 +116,9 @@ export const CustomerLayout: React.FC = () => {
                   to={item.path}
                   className={`relative py-1 transition-colors ${
                     item.highlight
-                      ? 'text-rose-600 font-semibold hover:text-rose-700'
+                      ? isSaleActive
+                        ? 'text-rose-600 font-extrabold'
+                        : 'text-rose-600 font-semibold hover:text-rose-700'
                       : isActive
                       ? 'text-zinc-950 font-semibold'
                       : 'text-zinc-600 hover:text-zinc-950'
@@ -119,7 +126,11 @@ export const CustomerLayout: React.FC = () => {
                 >
                   {item.label}
                   {isActive && (
-                    <span className="absolute bottom-0 left-0 w-full h-[2px] bg-zinc-950 rounded-full" />
+                    <span
+                      className={`absolute bottom-0 left-0 w-full h-[2px] rounded-full ${
+                        item.highlight ? 'bg-rose-600' : 'bg-zinc-950'
+                      }`}
+                    />
                   )}
                 </Link>
               );

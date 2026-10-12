@@ -34,18 +34,13 @@ router.get('/', (req: Request, res: Response) => {
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 16,
       status: 'ACTIVE',
+      saleOnly: sale === 'true',
     });
-
-    // If sale filter is active
-    let products = result.products;
-    if (sale === 'true') {
-      products = products.filter(p => p.salePrice && p.salePrice < p.price);
-    }
 
     return res.json({
       success: true,
       data: {
-        products,
+        products: result.products,
         total: result.total,
         page: result.page,
         limit: result.limit,

@@ -447,6 +447,7 @@ class DatabaseEngine {
     color?: string;
     sort?: string;
     status?: string;
+    saleOnly?: boolean;
     page?: number;
     limit?: number;
   }) {
@@ -459,6 +460,11 @@ class DatabaseEngine {
       }
     } else {
       list = list.filter(p => p.status === 'ACTIVE');
+    }
+
+    // Sale only filter
+    if (options?.saleOnly) {
+      list = list.filter(p => p.salePrice && p.salePrice < p.price);
     }
 
     // Category filter

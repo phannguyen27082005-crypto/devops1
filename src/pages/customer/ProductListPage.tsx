@@ -9,6 +9,11 @@ import {
   Star,
   Check,
   X,
+  Calendar,
+  Sparkles,
+  Tag,
+  ArrowRight,
+  Flame,
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { Product, Category } from '../../types';
@@ -41,11 +46,34 @@ export const ProductListPage: React.FC = () => {
 
   const { addToCart } = useCart();
 
+  // Synchronize state when URL query parameters change (e.g. clicking 'Khuyến Mãi HOT')
+  useEffect(() => {
+    const saleParam = searchParams.get('sale') === 'true';
+    setIsSaleOnly(saleParam);
+    if (searchParams.get('search') !== null) {
+      setSearch(searchParams.get('search') || '');
+    }
+    if (searchParams.get('category') !== null) {
+      setSelectedCategory(searchParams.get('category') || '');
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (categorySlug) {
       setSelectedCategory(categorySlug);
     }
   }, [categorySlug]);
+
+  const updateSaleOnly = (val: boolean) => {
+    setIsSaleOnly(val);
+    const newParams = new URLSearchParams(searchParams);
+    if (val) {
+      newParams.set('sale', 'true');
+    } else {
+      newParams.delete('sale');
+    }
+    setSearchParams(newParams);
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -103,13 +131,84 @@ export const ProductListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+      {/* Promotion Event Banner if Sale Mode is Active */}
+      {isSaleOnly && (
+        <div className="mb-8 rounded-3xl bg-gradient-to-br from-rose-950 via-zinc-950 to-zinc-900 text-white p-6 sm:p-8 relative overflow-hidden shadow-2xl border border-rose-900/50">
+          <div className="absolute -right-12 -top-12 w-64 h-64 bg-rose-600/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="relative z-10 max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-600/30 border border-rose-500/40 text-rose-300 text-xs font-bold uppercase tracking-wider mb-3">
+              <Flame className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
+              SỰ KIỆN ƯU ĐÃI ĐẶC BIỆT
+            </div>
+            <h2 className="font-serif-title text-2xl sm:text-4xl font-bold tracking-tight text-white mb-2 leading-tight">
+              Khuyến Mãi HOT - Giảm Đến 40%
+            </h2>
+            <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
+              Cơ hội sở hữu những thiết kế thời trang may đo và streetwear cao cấp với mức giá ưu đãi nhất mùa này.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs bg-white/5 backdrop-blur-md p-3.5 rounded-2xl border border-white/10 w-fit">
+              <div className="flex items-center gap-2 text-rose-300 font-semibold">
+                <Calendar className="w-4 h-4 text-rose-400" />
+                <span>Thời gian giảm giá: <strong>10/10/2026</strong> đến hết <strong>31/10/2026</strong></span>
+              </div>
+              <div className="hidden sm:block text-zinc-600">•</div>
+              <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>Nhập mã <strong>MAISON10</strong> giảm thêm 10% đơn từ 600K</span>
+              </div>
+            </div>
+
+            {/* Quick Category Switch for Discounted Items */}
+            <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-zinc-400 font-medium">Khám phá giảm giá sản phẩm khác:</span>
+              <button
+                onClick={() => setSelectedCategory('')}
+                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  !selectedCategory
+                    ? 'bg-rose-600 text-white shadow'
+                    : 'bg-white/10 text-zinc-200 hover:bg-white/20'
+                }`}
+              >
+                Tất cả ({total})
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(selectedCategory === cat.slug ? '' : cat.slug)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    selectedCategory === cat.slug
+                      ? 'bg-rose-600 text-white shadow'
+                      : 'bg-white/10 text-zinc-200 hover:bg-white/20'
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Title & Description */}
       <div className="mb-8">
-        <h1 className="font-serif-title text-3xl sm:text-4xl font-bold text-zinc-950">
-          {currentCategoryObj ? currentCategoryObj.name : 'Tất Cả Sản Phẩm'}
+        <h1 className="font-serif-title text-3xl sm:text-4xl font-bold text-zinc-950 flex items-center gap-3">
+          {isSaleOnly ? (
+            <>
+              <span>Sản Phẩm Khuyến Mãi HOT</span>
+              <span className="text-xs font-sans font-bold px-3 py-1 rounded-full bg-rose-600 text-white">
+                ƯU ĐÃI THÁNG 10
+              </span>
+            </>
+          ) : currentCategoryObj ? (
+            currentCategoryObj.name
+          ) : (
+            'Tất Cả Sản Phẩm'
+          )}
         </h1>
         <p className="text-xs sm:text-sm text-zinc-500 mt-1.5">
-          {currentCategoryObj
+          {isSaleOnly
+            ? `Áp dụng giảm giá từ ngày 10/10/2026 đến ngày 31/10/2026 • Hiện có ${total} sản phẩm đang giảm giá`
+            : currentCategoryObj
             ? currentCategoryObj.description
             : `Khám phá hơn ${total} thiết kế thời trang hiện đại, thanh lịch và cao cấp`}
         </p>
@@ -143,6 +242,87 @@ export const ProductListPage: React.FC = () => {
           </select>
         </div>
       </div>
+
+      {/* Mobile Filters Drawer Modal */}
+      {mobileFilterOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setMobileFilterOpen(false)}
+          />
+          <div className="relative ml-auto w-full max-w-xs bg-white h-full shadow-2xl p-6 overflow-y-auto space-y-6 flex flex-col justify-between">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-zinc-200">
+                <h3 className="font-bold text-sm text-zinc-950 uppercase tracking-wider">
+                  Bộ Lọc Sản Phẩm
+                </h3>
+                <button
+                  onClick={() => setMobileFilterOpen(false)}
+                  className="p-1 rounded-lg text-zinc-500 hover:text-black"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Sale Toggle Mobile */}
+              <div>
+                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200">
+                  <input
+                    type="checkbox"
+                    checked={isSaleOnly}
+                    onChange={e => updateSaleOnly(e.target.checked)}
+                    className="rounded border-rose-300 text-rose-600 focus:ring-rose-500 w-4 h-4"
+                  />
+                  <span>Chỉ sản phẩm giảm giá 🔥</span>
+                </label>
+              </div>
+
+              {/* Categories */}
+              <div>
+                <h4 className="font-bold text-xs uppercase tracking-wider text-zinc-950 mb-2">
+                  Danh Mục
+                </h4>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('');
+                      setMobileFilterOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium ${
+                      !selectedCategory ? 'bg-zinc-950 text-white font-bold' : 'text-zinc-700'
+                    }`}
+                  >
+                    Tất cả danh mục
+                  </button>
+                  {categories.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCategory(c.slug);
+                        setMobileFilterOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium ${
+                        selectedCategory === c.slug
+                          ? 'bg-zinc-950 text-white font-bold'
+                          : 'text-zinc-700'
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setMobileFilterOpen(false)}
+              className="w-full py-3 bg-zinc-950 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg"
+            >
+              Áp Dụng Bộ Lọc ({total})
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: Sidebar + Products */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 pt-8">
@@ -187,7 +367,7 @@ export const ProductListPage: React.FC = () => {
               <input
                 type="checkbox"
                 checked={isSaleOnly}
-                onChange={e => setIsSaleOnly(e.target.checked)}
+                onChange={e => updateSaleOnly(e.target.checked)}
                 className="rounded border-zinc-300 text-rose-600 focus:ring-rose-500 w-4 h-4"
               />
               <span>Chỉ hiển thị sản phẩm giảm giá 🔥</span>
