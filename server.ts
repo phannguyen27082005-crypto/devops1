@@ -9,23 +9,44 @@ import couponRoutes from './backend/routes/couponRoutes.js';
 import bannerRoutes from './backend/routes/bannerRoutes.js';
 import reviewRoutes from './backend/routes/reviewRoutes.js';
 import adminRoutes from './backend/routes/adminRoutes.js';
+import cartRoutes from './backend/routes/cartRoutes.js';
 import { authenticateToken, requireAdmin } from './backend/middleware/auth.js';
+import { checkSqlConnection } from './backend/db/sqlClient.js';
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+// CORS Support for cross-origin frontend requests
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-session-id');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // Body Parsers with generous size limit for image uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check
-app.get('/api/health', (_req: Request, res: Response) => {
+// Health check & SQL Server connection verification
+app.get('/api/health', async (_req: Request, res: Response) => {
+  const sqlStatus = await checkSqlConnection();
   res.json({
     status: 'ok',
     store: 'Nguyen Fashion E-Commerce',
     environment: process.env.NODE_ENV || 'development',
+    database: {
+      engine: 'Microsoft SQL Server',
+      database: process.env.DB_NAME || 'nguyen_fashion',
+      server: `${process.env.DB_SERVER || 'localhost'}\\${process.env.DB_INSTANCE || 'SQLEXPRESS'}`,
+      connected: sqlStatus.connected,
+      message: sqlStatus.message,
+    },
     timestamp: new Date().toISOString(),
   });
 });
@@ -52,6 +73,7 @@ app.post('/api/upload', authenticateToken, requireAdmin, (req: Request, res: Res
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/banners', bannerRoutes);
@@ -85,8 +107,14 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[Nguyen Fashion] Server running on http://0.0.0.0:${PORT}`);
+    const sqlStatus = await checkSqlConnection();
+    if (sqlStatus.connected) {
+      console.log(`[Nguyen Fashion] ✅ CSDL SQL Server: Đã kết nối thành công (${sqlStatus.message})`);
+    } else {
+      console.warn(`[Nguyen Fashion] ⚠️ CSDL SQL Server: Chưa kết nối được (${sqlStatus.message})`);
+    }
   });
 }
 

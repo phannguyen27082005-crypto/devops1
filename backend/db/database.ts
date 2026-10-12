@@ -348,6 +348,23 @@ class DatabaseEngine {
     return newState;
   }
 
+  private syncTimer: NodeJS.Timeout | null = null;
+
+  private scheduleSqlServerSync(): void {
+    if (this.syncTimer) {
+      clearTimeout(this.syncTimer);
+    }
+    this.syncTimer = setTimeout(async () => {
+      try {
+        const { syncDatabaseToSqlServer } = await import('./syncToSqlServer.js');
+        await syncDatabaseToSqlServer();
+        console.log('[SQL Server] Tự động đồng bộ CSDL hoàn tất');
+      } catch (err: any) {
+        console.warn('[SQL Server] Tự động đồng bộ bỏ qua:', err.message);
+      }
+    }, 1500);
+  }
+
   private saveState(stateToSave?: DatabaseState) {
     try {
       if (!fs.existsSync(DATA_DIR)) {
@@ -355,6 +372,7 @@ class DatabaseEngine {
       }
       const data = stateToSave || this.state;
       fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+      this.scheduleSqlServerSync();
     } catch (err) {
       console.error('Failed to write database file:', err);
     }

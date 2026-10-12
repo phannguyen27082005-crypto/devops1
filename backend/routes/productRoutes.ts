@@ -57,6 +57,36 @@ router.get('/', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/products/featured
+router.get('/featured', (_req: Request, res: Response) => {
+  try {
+    const products = db.listProducts({ status: 'ACTIVE', limit: 8 }).products.filter(p => p.isFeatured);
+    return res.json({ success: true, data: products });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi tải sản phẩm nổi bật', error: error.message });
+  }
+});
+
+// GET /api/products/flash-sale
+router.get('/flash-sale', (_req: Request, res: Response) => {
+  try {
+    const products = db.listProducts({ status: 'ACTIVE', limit: 8 }).products.filter(p => p.isFlashSale || (p.salePrice && p.salePrice < p.price));
+    return res.json({ success: true, data: products });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi tải sản phẩm flash sale', error: error.message });
+  }
+});
+
+// GET /api/products/new-arrivals
+router.get('/new-arrivals', (_req: Request, res: Response) => {
+  try {
+    const products = db.listProducts({ status: 'ACTIVE', limit: 8 }).products.filter(p => p.isNewArrival);
+    return res.json({ success: true, data: products });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi tải sản phẩm mới', error: error.message });
+  }
+});
+
 // GET /api/products/:idOrSlug
 router.get('/:idOrSlug', (req: Request, res: Response) => {
   try {

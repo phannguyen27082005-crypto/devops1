@@ -77,6 +77,22 @@ export const api = {
     me: () => fetchWithAuth('/api/auth/me'),
     updateProfile: (data: { name?: string; phone?: string; avatar?: string; address?: string }) =>
       fetchWithAuth('/api/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
+    changePassword: (data: { currentPassword: string; newPassword: string; confirmPassword?: string }) =>
+      fetchWithAuth('/api/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  // Cart API
+  cart: {
+    get: (sessionId?: string) =>
+      fetchWithAuth(`/api/cart${sessionId ? `?sessionId=${sessionId}` : ''}`),
+    add: (productId: string, variantId?: string, quantity?: number) =>
+      fetchWithAuth('/api/cart', { method: 'POST', body: JSON.stringify({ productId, variantId, quantity }) }),
+    update: (variantId: string, quantity: number) =>
+      fetchWithAuth(`/api/cart/${variantId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
+    remove: (variantId: string) =>
+      fetchWithAuth(`/api/cart/${variantId}`, { method: 'DELETE' }),
+    clear: () =>
+      fetchWithAuth('/api/cart', { method: 'DELETE' }),
   },
 
   // Storefront Products
@@ -94,6 +110,9 @@ export const api = {
       return fetchWithAuth(`/api/products${qs ? `?${qs}` : ''}`);
     },
     getByIdOrSlug: (idOrSlug: string) => fetchWithAuth(`/api/products/${idOrSlug}`),
+    getFeatured: () => fetchWithAuth('/api/products/featured'),
+    getFlashSale: () => fetchWithAuth('/api/products/flash-sale'),
+    getNewArrivals: () => fetchWithAuth('/api/products/new-arrivals'),
   },
 
   // Categories
@@ -253,6 +272,15 @@ export const api = {
         fetchWithAuth('/api/admin/settings'),
       update: (data: Partial<StoreSettings>) =>
         fetchWithAuth('/api/admin/settings', { method: 'PUT', body: JSON.stringify(data) }),
+    },
+
+    db: {
+      getStatus: () => fetchWithAuth('/api/admin/db/status'),
+      sync: () => fetchWithAuth('/api/admin/db/sync', { method: 'POST' }),
+    },
+
+    analytics: {
+      getRevenue: () => fetchWithAuth('/api/admin/analytics/revenue'),
     },
   },
 };

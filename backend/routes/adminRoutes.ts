@@ -542,4 +542,129 @@ router.put('/settings', (req: AuthRequest, res: Response) => {
   }
 });
 
+// ==========================================
+// 11. SQL SERVER DATABASE MANAGEMENT & MONITORING
+// ==========================================
+router.get('/db/status', async (req: AuthRequest, res: Response) => {
+  try {
+    const { checkSqlConnection, getPool } = await import('../db/sqlClient.js');
+    const health = await checkSqlConnection();
+
+    let tableCounts: Record<string, number> = {};
+    if (health.connected) {
+      const pool = await getPool();
+      const r = await pool.request().query(`
+        SELECT t.NAME AS TableName, p.rows AS RowCounts
+        FROM sys.tables t
+        INNER JOIN sys.partitions p ON t.object_id = p.OBJECT_ID
+        WHERE p.index_id IN (0,1)
+        ORDER BY t.NAME
+      `);
+      for (const row of r.recordset) {
+        tableCounts[row.TableName] = row.RowCounts;
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        engine: 'Microsoft SQL Server',
+        connected: health.connected,
+        message: health.message,
+        version: health.version,
+        server: `${process.env.DB_SERVER || 'localhost'}\\${process.env.DB_INSTANCE || 'SQLEXPRESS'}`,
+        database: process.env.DB_NAME || 'nguyen_fashion',
+        tableCounts,
+        inMemoryStats: {
+          products: db.listProducts({ status: 'ALL', limit: 1000 }).total,
+          customers: db.listCustomers().length,
+          orders: db.listOrders().length,
+          categories: db.listCategories().length,
+        },
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi kiểm tra CSDL SQL Server', error: error.message });
+  }
+});
+
+router.post('/db/sync', async (req: AuthRequest, res: Response) => {
+  try {
+    const { syncDatabaseToSqlServer } = await import('../db/syncToSqlServer.js');
+    await syncDatabaseToSqlServer();
+    return res.json({
+      success: true,
+      message: 'Đồng bộ toàn bộ dữ liệu vào Microsoft SQL Server (nguyen_fashion) thành công 100%!',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi đồng bộ dữ liệu vào SQL Server', error: error.message });
+  }
+});
+
+// ==========================================
+// 12. ADVANCED REVENUE & SALES ANALYTICS
+// ==========================================
+router.get('/analytics/revenue', (req: AuthRequest, res: Response) => {
+  try {
+    const orders = db.listOrders();
+    const deliveredOrders = orders.filter(o => o.orderStatus === 'DELIVERED');
+    const confirmedOrders = orders.filter(o => o.orderStatus !== 'CANCELLED');
+
+    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const potentialRevenue = confirmedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+    // Sales by category
+    const categorySales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+    for (const order of deliveredOrders) {
+      for (const item of order.items) {
+        const prod = db.findProductById(item.productId);
+        const catName = prod?.categoryName || 'Khác';
+        if (!categorySales[catName]) {
+          categorySales[catName] = { name: catName, quantity: 0, revenue: 0 };
+        }
+        categorySales[catName].quantity += item.quantity;
+        categorySales[catName].revenue += item.total;
+      }
+    }
+
+    // Top selling products
+    const productSales: Record<string, { id: string; name: string; sold: number; revenue: number; image?: string }> = {};
+    for (const order of confirmedOrders) {
+      for (const item of order.items) {
+        if (!productSales[item.productId]) {
+          productSales[item.productId] = {
+            id: item.productId,
+            name: item.productName,
+            sold: 0,
+            revenue: 0,
+            image: item.imageUrl,
+          };
+        }
+        productSales[item.productId].sold += item.quantity;
+        productSales[item.productId].revenue += item.total;
+      }
+    }
+
+    const topSelling = Object.values(productSales)
+      .sort((a, b) => b.sold - a.sold)
+      .slice(0, 5);
+
+    return res.json({
+      success: true,
+      data: {
+        totalRevenue,
+        potentialRevenue,
+        totalOrders: orders.length,
+        deliveredOrdersCount: deliveredOrders.length,
+        pendingOrdersCount: orders.filter(o => o.orderStatus === 'PENDING').length,
+        categorySales: Object.values(categorySales),
+        topSellingProducts: topSelling,
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi tải báo cáo doanh thu', error: error.message });
+  }
+});
+
 export default router;

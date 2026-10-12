@@ -240,4 +240,44 @@ router.put('/profile', authenticateToken, (req: AuthRequest, res: Response) => {
   });
 });
 
+// 6. Change Password
+router.post('/change-password', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({ success: false, message: 'Xác nhận mật khẩu mới không khớp' });
+    }
+
+    const user = db.findUserById(req.user!.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không chính xác' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    db.updateUser(user.id, { passwordHash: newPasswordHash });
+
+    return res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công! Vui lòng sử dụng mật khẩu mới cho lần đăng nhập sau.',
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi đổi mật khẩu', error: error.message });
+  }
+});
+
 export default router;
