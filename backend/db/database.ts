@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import { matchesProductSearch } from './productSearch.js';
+import { initializeSqlState, writeSqlState } from './sqlState.js';
 import {
   CategoryData,
   ProductData,
@@ -115,6 +116,35 @@ const DATA_FILE = path.join(DATA_DIR, 'store.json');
 
 class DatabaseEngine {
   private state: DatabaseState;
+  private sqlReady = false;
+  private dirty = false;
+  private committedState = '';
+
+  public async initialize(): Promise<void> {
+    const payload = await initializeSqlState(JSON.stringify(this.state));
+    this.state = JSON.parse(payload);
+    this.committedState = payload;
+    this.sqlReady = true;
+  }
+
+  public async flush(): Promise<void> {
+    if (!this.dirty) return;
+    const payload = JSON.stringify(this.state);
+    try {
+      await writeSqlState(payload);
+    } catch (error) {
+      this.state = JSON.parse(this.committedState);
+      this.dirty = false;
+      throw error;
+    }
+    this.committedState = payload;
+    this.dirty = false;
+    // JSON is an export/cache for the normalized SQL projection, not the source.
+    try {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(this.state, null, 2), 'utf-8');
+      this.scheduleSqlServerSync();
+    } catch (error) { console.error('SQL saved; JSON export failed:', error); }
+  }
 
   constructor() {
     this.state = this.loadOrInitialize();
@@ -383,6 +413,10 @@ class DatabaseEngine {
   }
 
   private saveState(stateToSave?: DatabaseState) {
+    if (this.sqlReady) {
+      this.dirty = true;
+      return;
+    }
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });

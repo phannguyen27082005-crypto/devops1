@@ -1,5 +1,7 @@
 import { Router, Response } from 'express';
 import { db } from '../db/database.js';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../middleware/auth.js';
 import { authenticateToken, optionalAuth, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
@@ -135,6 +137,7 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
       success: true,
       message: 'Đặt hàng thành công',
       data: newOrder,
+      accessToken: !req.user ? jwt.sign({ orderId: newOrder.id, scope: 'order-read' }, JWT_SECRET, { expiresIn: '30d' }) : undefined,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'Lỗi xử lý đơn hàng', error: error.message });
@@ -157,7 +160,15 @@ router.get('/:id', optionalAuth, (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const order = db.findOrderById(id);
 
-    if (!order) {
+    let guestAccess = false;
+    const orderToken = req.headers['x-order-token'];
+    if (order && typeof orderToken === 'string') {
+      try {
+        const decoded = jwt.verify(orderToken, JWT_SECRET) as jwt.JwtPayload;
+        guestAccess = decoded.scope === 'order-read' && decoded.orderId === order.id;
+      } catch { /* Invalid guest token. */ }
+    }
+    if (!order || (!guestAccess && (!req.user || (order.userId !== req.user.id && req.user.role !== 'ADMIN')))) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
     }
 
@@ -168,13 +179,13 @@ router.get('/:id', optionalAuth, (req: AuthRequest, res: Response) => {
 });
 
 // PUT /api/orders/:id/cancel (Customer cancel order)
-router.put('/:id/cancel', optionalAuth, (req: AuthRequest, res: Response) => {
+router.put('/:id/cancel', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
 
     const order = db.findOrderById(id) || db.listOrders().find(o => o.orderCode === id);
-    if (!order) {
+    if (!order || (order.userId !== req.user!.id && req.user!.role !== 'ADMIN')) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
     }
 
@@ -204,13 +215,13 @@ router.put('/:id/cancel', optionalAuth, (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/orders/:id/return (Customer request return or exchange size)
-router.post('/:id/return', optionalAuth, (req: AuthRequest, res: Response) => {
+router.post('/:id/return', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { type, reason, targetSize, bankInfo, note } = req.body;
 
     const order = db.findOrderById(id) || db.listOrders().find(o => o.orderCode === id);
-    if (!order) {
+    if (!order || (order.userId !== req.user!.id && req.user!.role !== 'ADMIN')) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
     }
 

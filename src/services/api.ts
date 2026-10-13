@@ -83,16 +83,11 @@ export const api = {
 
   // Cart API
   cart: {
-    get: (sessionId?: string) =>
-      fetchWithAuth(`/api/cart${sessionId ? `?sessionId=${sessionId}` : ''}`),
-    add: (productId: string, variantId?: string, quantity?: number) =>
-      fetchWithAuth('/api/cart', { method: 'POST', body: JSON.stringify({ productId, variantId, quantity }) }),
-    update: (variantId: string, quantity: number) =>
-      fetchWithAuth(`/api/cart/${variantId}`, { method: 'PUT', body: JSON.stringify({ quantity }) }),
-    remove: (variantId: string) =>
-      fetchWithAuth(`/api/cart/${variantId}`, { method: 'DELETE' }),
+    get: () => fetchWithAuth('/api/cart'),
+    save: (items: Array<{ productId: string; variantId: string; quantity: number }>) =>
+      fetchWithAuth('/api/cart', { method: 'PUT', body: JSON.stringify({ items }) }),
     clear: () =>
-      fetchWithAuth('/api/cart', { method: 'DELETE' }),
+      fetchWithAuth('/api/cart', { method: 'PUT', body: JSON.stringify({ items: [] }) }),
   },
 
   // Storefront Products
@@ -123,11 +118,17 @@ export const api = {
 
   // Orders
   orders: {
-    create: (orderData: any) =>
-      fetchWithAuth('/api/orders', { method: 'POST', body: JSON.stringify(orderData) }),
+    create: async (orderData: any) => {
+      const result = await fetchWithAuth('/api/orders', { method: 'POST', body: JSON.stringify(orderData) });
+      if (result.accessToken && result.data) {
+        sessionStorage.setItem(`order_access:${result.data.id}`, result.accessToken);
+        sessionStorage.setItem(`order_access:${result.data.orderCode}`, result.accessToken);
+      }
+      return result;
+    },
     getMyOrders: () => fetchWithAuth('/api/orders'),
-    getById: (id: string) => fetchWithAuth(`/api/orders/${id}`),
-    getByCode: (orderCode: string) => fetchWithAuth(`/api/orders/${orderCode}`),
+    getById: (id: string) => fetchWithAuth(`/api/orders/${id}`, { headers: { 'x-order-token': sessionStorage.getItem(`order_access:${id}`) || '' } }),
+    getByCode: (orderCode: string) => fetchWithAuth(`/api/orders/${orderCode}`, { headers: { 'x-order-token': sessionStorage.getItem(`order_access:${orderCode}`) || '' } }),
     cancelOrder: (id: string, reason: string) =>
       fetchWithAuth(`/api/orders/${id}/cancel`, {
         method: 'PUT',

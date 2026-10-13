@@ -12,6 +12,8 @@ import adminRoutes from './backend/routes/adminRoutes.js';
 import cartRoutes from './backend/routes/cartRoutes.js';
 import { authenticateToken, requireAdmin } from './backend/middleware/auth.js';
 import { checkSqlConnection } from './backend/db/sqlClient.js';
+import { db } from './backend/db/database.js';
+import { persistApi } from './backend/middleware/persistence.js';
 
 dotenv.config();
 
@@ -22,7 +24,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-session-id');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-session-id, x-order-token');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
@@ -40,6 +42,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     status: 'ok',
     store: 'Nguyên Fashion E-Commerce',
     environment: process.env.NODE_ENV || 'development',
+    storage: { source: 'SQL Server application_state', cache: 'memory', cart: 'SQL Server account_carts' },
     database: {
       engine: 'Microsoft SQL Server',
       database: process.env.DB_NAME || 'nguyen_fashion',
@@ -70,6 +73,7 @@ app.post('/api/upload', authenticateToken, requireAdmin, (req: Request, res: Res
 });
 
 // API Routes Mounting
+app.use('/api', persistApi);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -93,6 +97,7 @@ app.use('/api', (err: any, _req: Request, res: Response, _next: any) => {
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 async function startServer() {
+  await db.initialize();
   if (process.env.NODE_ENV !== 'production') {
     // Vite middleware for development
     const { createServer: createViteServer } = await import('vite');
@@ -121,4 +126,4 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(error => { console.error('Không thể khởi động backend:', error.message); process.exitCode = 1; });

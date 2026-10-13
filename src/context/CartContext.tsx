@@ -58,6 +58,9 @@ const AccountCartProvider: React.FC<{
   storageKey: string;
   restoreAnLegacyCart: boolean;
 }> = ({ children, storageKey, restoreAnLegacyCart }) => {
+  const { token, isAuthenticated } = useAuth();
+  const [cartReady, setCartReady] = useState(!isAuthenticated);
+  const cartSaveQueue = React.useRef<Promise<void>>(Promise.resolve());
   const [items, setItems] = useState<CartItem[]>(() => {
     return readCart(localStorage, storageKey, restoreAnLegacyCart);
   });
@@ -75,6 +78,44 @@ const AccountCartProvider: React.FC<{
   const { success, error } = useNotification();
 
   useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    const controller = new AbortController();
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    void (async () => {
+      try {
+        const response = await fetch('/api/cart', { headers, signal: controller.signal });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message);
+        let serverItems = result.data.items;
+        if (!result.data.exists) {
+          const localItems = readCart(localStorage, storageKey, restoreAnLegacyCart);
+          const saved = await fetch('/api/cart', { method: 'PUT', headers,
+            body: JSON.stringify({ items: localItems }), signal: controller.signal });
+          const imported = await saved.json();
+          if (!saved.ok) throw new Error(imported.message);
+          serverItems = imported.data.items;
+        }
+        if (!controller.signal.aborted) { setItems(serverItems); setCartReady(true); }
+      } catch (err: any) { if (!controller.signal.aborted) error(err.message || 'Không thể tải giỏ hàng SQL'); }
+    })();
+    return () => controller.abort();
+  }, [token, isAuthenticated, storageKey]);
+
+  useEffect(() => {
+    if (!cartReady || !isAuthenticated || !token) return;
+    // Capture this account's token and keep the final save on logout. Serialize
+    // edits so a slower earlier request cannot overwrite a later cart.
+    cartSaveQueue.current = cartSaveQueue.current.then(async () => {
+      try {
+        const response = await fetch('/api/cart', { method: 'PUT',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items }) });
+        if (!response.ok) throw new Error('Không thể lưu giỏ hàng SQL');
+      } catch (err: any) { error(err.message); }
+    });
+  }, [items, cartReady, token, isAuthenticated]);
+
+  useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(items));
     } catch (err) {
@@ -83,6 +124,7 @@ const AccountCartProvider: React.FC<{
   }, [items, storageKey]);
 
   const addToCart = (product: Product, variant: ProductVariant, quantity: number = 1) => {
+    if (!cartReady) { error('Đang tải giỏ hàng, vui lòng thử lại sau'); return; }
     if (variant.stock <= 0) {
       error(`Rất tiếc, size ${variant.size} - màu ${variant.color} hiện đã hết hàng`);
       return;

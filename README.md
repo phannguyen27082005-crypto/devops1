@@ -143,7 +143,10 @@ Mỗi khi có commit mới vào `main`, GitHub Actions sẽ tự động build v
 
 - `backend/db/sqlClient.ts`: cấu hình kết nối SQL Server từ các biến `DB_*` trong `.env`.
 - `backend/db/syncToSqlServer.ts`: thêm/cập nhật dữ liệu từ `data/store.json` vào SQL theo ID; giữ bản ghi SQL đang có. Nhận diện sản phẩm cũ theo slug và giữ sản phẩm ngừng bán để bảo toàn lịch sử đơn.
-- `backend/db/database.ts`: website đọc/ghi JSON và tự gọi đồng bộ SQL sau khi lưu. SQL hiện là bản dữ liệu đồng bộ, chưa phải nguồn đọc trực tiếp của các API.
+- `backend/db/database.ts`: cache dữ liệu trong bộ nhớ; khôi phục từ SQL khi khởi động. Mọi thay đổi được lưu SQL trước khi API báo thành công.
+- `backend/db/sqlState.ts`: lưu toàn bộ trạng thái ứng dụng trong `application_state`; tạo bảng `account_carts` cho giỏ hàng tài khoản. JSON chỉ là bản xuất để đồng bộ sang các bảng quan hệ hiện có.
+- `backend/middleware/persistence.ts`: tuần tự hóa API cho backend một tiến trình; commit SQL trước phản hồi và khôi phục cache nếu ghi SQL thất bại.
+- `backend/routes/cartRoutes.ts`: `GET /api/cart` và `PUT /api/cart` lưu/đọc giỏ SQL theo ID trong token đăng nhập. Khách chưa đăng nhập dùng giỏ trình duyệt.
 - `database/sqlserver_setup.sql`: cấu trúc bảng SQL Server cho lần cài đặt đầu tiên.
 - `server.ts`: endpoint `/api/health` kiểm tra kết nối SQL.
 
@@ -151,6 +154,10 @@ Máy hiện tại dùng `localhost\SQLEXPRESS` (tương đương `Thohihi\SQLEXP
 Thông tin đăng nhập SQL đặt trong `.env`, không đưa lên GitHub. Xem `.env.example` để cấu hình máy khác.
 
 Chạy cập nhật: `npm run db:sync`. Trong SSMS, kết nối server trên rồi Refresh database `nguyen_fashion` → Tables.
+
+Backend cần SQL hoạt động để khởi động. Bảng `application_state` là nguồn dữ liệu chính và được khởi tạo từ JSON một lần khi chưa có dữ liệu. Các bảng quan hệ được cập nhật sau khi lưu; thay đổi trực tiếp các bảng này trong SSMS không tự sửa trạng thái ứng dụng. Thiết kế hiện dùng một tiến trình backend, chưa hỗ trợ nhiều replica ghi đồng thời.
+
+Chi tiết đơn hàng chỉ dành cho chủ đơn/admin. Đơn khách không đăng nhập nhận token chỉ đọc riêng cho đơn đó, được trình duyệt giữ trong phiên; không công khai đơn hàng bằng mã đoán được.
 
 ```
 ├── backend/                   # Mã nguồn Express Backend

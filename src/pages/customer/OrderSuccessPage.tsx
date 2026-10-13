@@ -11,6 +11,7 @@ export const OrderSuccessPage: React.FC = () => {
   const [order, setOrder] = useState<Order | null>((location.state as any)?.order || null);
   const [loading, setLoading] = useState(!order);
   const [copied, setCopied] = useState(false);
+  const [qrType, setQrType] = useState<'uploaded' | 'dynamic'>('uploaded');
 
   const { success } = useNotification();
 
@@ -58,7 +59,6 @@ export const OrderSuccessPage: React.FC = () => {
     );
   }
 
-  const [qrType, setQrType] = useState<'uploaded' | 'dynamic'>('uploaded');
   const dynamicQrUrl = `https://api.vietqr.io/image/970422-6000270805-compact.jpg?accountName=PHAN%20NHAT%20NGUYEN&amount=${order.totalAmount}&addInfo=NF%20${order.orderCode}`;
 
   return (
