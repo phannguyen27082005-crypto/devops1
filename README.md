@@ -139,6 +139,19 @@ Mỗi khi có commit mới vào `main`, GitHub Actions sẽ tự động build v
 
 ## 📁 Cấu Trúc Thư Mục Dự Án
 
+### Kết nối và cập nhật SQL Server
+
+- `backend/db/sqlClient.ts`: cấu hình kết nối SQL Server từ các biến `DB_*` trong `.env`.
+- `backend/db/syncToSqlServer.ts`: thêm/cập nhật dữ liệu từ `data/store.json` vào SQL theo ID; giữ bản ghi SQL đang có. Nhận diện sản phẩm cũ theo slug và giữ sản phẩm ngừng bán để bảo toàn lịch sử đơn.
+- `backend/db/database.ts`: website đọc/ghi JSON và tự gọi đồng bộ SQL sau khi lưu. SQL hiện là bản dữ liệu đồng bộ, chưa phải nguồn đọc trực tiếp của các API.
+- `database/sqlserver_setup.sql`: cấu trúc bảng SQL Server cho lần cài đặt đầu tiên.
+- `server.ts`: endpoint `/api/health` kiểm tra kết nối SQL.
+
+Máy hiện tại dùng `localhost\SQLEXPRESS` (tương đương `Thohihi\SQLEXPRESS`), database `nguyen_fashion`.
+Thông tin đăng nhập SQL đặt trong `.env`, không đưa lên GitHub. Xem `.env.example` để cấu hình máy khác.
+
+Chạy cập nhật: `npm run db:sync`. Trong SSMS, kết nối server trên rồi Refresh database `nguyen_fashion` → Tables.
+
 ```
 ├── backend/                   # Mã nguồn Express Backend
 │   ├── db/                    # Cơ sở dữ liệu JSON Engine & Seed Data

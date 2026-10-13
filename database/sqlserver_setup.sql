@@ -120,7 +120,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'product_variants')
 CREATE TABLE product_variants (
     id VARCHAR(36) PRIMARY KEY,
     product_id VARCHAR(36) NOT NULL,
-    size NVARCHAR(20) NOT NULL,
+    size NVARCHAR(100) NOT NULL,
     color NVARCHAR(50) NOT NULL,
     color_code VARCHAR(10) DEFAULT '#000000',
     stock INT NOT NULL DEFAULT 0,
@@ -203,7 +203,7 @@ CREATE TABLE order_items (
     product_id VARCHAR(36) NOT NULL,
     variant_id VARCHAR(36) NULL,
     product_name NVARCHAR(200) NOT NULL,
-    size NVARCHAR(20) NOT NULL,
+    size NVARCHAR(100) NOT NULL,
     color NVARCHAR(50) NOT NULL,
     price DECIMAL(12, 2) NOT NULL,
     quantity INT NOT NULL,
