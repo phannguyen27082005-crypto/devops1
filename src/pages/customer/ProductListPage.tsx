@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useParams, Link } from 'react-router-dom';
+import { useSearchParams, useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Search,
   Filter,
@@ -14,12 +14,14 @@ import {
   Tag,
   ArrowRight,
   Flame,
+  Zap,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Product, Category } from '../../types';
+import { Product, Category, CartItem } from '../../types';
 import { useCart } from '../../context/CartContext';
 
 export const ProductListPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { categorySlug } = useParams<{ categorySlug?: string }>();
 
@@ -113,7 +115,36 @@ export const ProductListPage: React.FC = () => {
 
   const handleQuickAdd = (p: Product) => {
     if (p.variants.length > 0) {
-      addToCart(p, p.variants[0], 1);
+      const variant = p.variants.find(v => v.stock > 0) || p.variants[0];
+      addToCart(p, variant, 1);
+    }
+  };
+
+  const handleQuickBuy = (p: Product, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (p.variants.length > 0) {
+      const variant = p.variants.find(v => v.stock > 0) || p.variants[0];
+      const buyItem: CartItem = {
+        id: `${p.id}_${variant.id}`,
+        productId: p.id,
+        variantId: variant.id,
+        productName: p.name,
+        slug: p.slug,
+        size: variant.size,
+        color: variant.color,
+        colorCode: variant.colorCode,
+        price: variant.price || p.salePrice || p.price,
+        originalPrice: p.price,
+        quantity: 1,
+        image: p.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800',
+        maxStock: variant.stock,
+        sku: variant.sku,
+      };
+      addToCart(p, variant, 1);
+      navigate('/checkout', { state: { selectedItems: [buyItem] } });
     }
   };
 
@@ -506,10 +537,12 @@ export const ProductListPage: React.FC = () => {
                             {prod.name}
                           </h3>
                         </Link>
-                        <div className="flex items-center gap-1 mt-1 text-amber-400 text-xs">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                          <span className="font-semibold text-zinc-700 text-xs">{prod.rating}</span>
-                          <span className="text-zinc-400 text-[10px]">({prod.soldCount})</span>
+                        <div className="flex items-center gap-1 mt-1 text-amber-500 text-xs">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span className="font-bold text-zinc-800 text-xs">{prod.rating || 5.0}</span>
+                          <span className="text-zinc-400 text-[10px]">({prod.reviewCount || 1} đánh giá)</span>
+                          <span className="text-zinc-300">•</span>
+                          <span className="text-zinc-400 text-[10px]">{prod.soldCount} đã bán</span>
                         </div>
                         <div className="mt-1.5">
                           {(() => {
@@ -529,24 +562,40 @@ export const ProductListPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">
-                        <div>
-                          <p className="font-mono font-bold text-xs sm:text-sm text-zinc-950">
-                            {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
-                          </p>
-                          {prod.salePrice && (
-                            <p className="font-mono text-[10px] text-zinc-400 line-through">
-                              {prod.price.toLocaleString('vi-VN')}đ
+                      <div className="pt-3 mt-2 border-t border-zinc-100 space-y-2">
+                        <div className="flex items-baseline justify-between">
+                          <div>
+                            <p className="font-mono font-bold text-xs sm:text-sm text-zinc-950">
+                              {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
                             </p>
-                          )}
+                            {prod.salePrice && (
+                              <p className="font-mono text-[10px] text-zinc-400 line-through">
+                                {prod.price.toLocaleString('vi-VN')}đ
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <button
-                          onClick={() => handleQuickAdd(prod)}
-                          className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-950 hover:text-white text-zinc-800 transition-colors"
-                          title="Thêm vào giỏ"
-                        >
-                          <ShoppingBag className="w-4 h-4" />
-                        </button>
+
+                        <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleQuickAdd(prod); }}
+                            className="py-2 px-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-2xs"
+                            title="Thêm vào giỏ hàng"
+                          >
+                            <ShoppingBag className="w-3.5 h-3.5 shrink-0 text-zinc-700" />
+                            <span className="truncate">Thêm Giỏ</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleQuickBuy(prod, e)}
+                            className="py-2 px-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm"
+                            title="Mua ngay lập tức"
+                          >
+                            <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                            <span className="truncate">Mua Ngay</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

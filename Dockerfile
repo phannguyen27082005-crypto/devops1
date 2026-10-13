@@ -27,6 +27,7 @@ RUN npm ci --omit=dev
 
 # Copy built bundle from builder
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/data ./data
 COPY --from=builder /app/database ./database
 

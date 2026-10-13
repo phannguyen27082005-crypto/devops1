@@ -8,13 +8,20 @@ import {
   RotateCcw,
   ShieldCheck,
   Check,
+  CheckCircle2,
+  Sparkles,
   ChevronRight,
   Send,
   AlertCircle,
   ArrowRight,
+  ThumbsUp,
+  Image as ImageIcon,
+  X,
+  MessageSquare,
+  Filter,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Product, ProductVariant, Review } from '../../types';
+import { Product, ProductVariant, Review, CartItem } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -33,10 +40,16 @@ export const ProductDetailPage: React.FC = () => {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
 
-  // Review Form state
+  // Review & Shopee filter state
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewImageInput, setReviewImageInput] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<'ALL' | '5' | '4' | '3' | '2' | '1' | 'IMAGES' | 'COMMENTS'>('ALL');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [helpfulVotes, setHelpfulVotes] = useState<Record<string, number>>({});
+  const [hasVotedHelpful, setHasVotedHelpful] = useState<Record<string, boolean>>({});
 
   const { addToCart } = useCart();
   const { isAuthenticated, user } = useAuth();
@@ -51,10 +64,9 @@ export const ProductDetailPage: React.FC = () => {
         if (res.success && res.data?.product) {
           const p = res.data.product;
           setProduct(p);
-          setSelectedImage(p.images[0] || '');
-          if (p.variants && p.variants.length > 0) {
-            setSelectedVariant(p.variants[0]);
-          }
+          const firstVariant = p.variants && p.variants.length > 0 ? p.variants[0] : null;
+          setSelectedVariant(firstVariant);
+          setSelectedImage(firstVariant?.image || p.images[0] || '');
           setReviews(res.data.reviews || []);
           setRelatedProducts(res.data.related || []);
         } else {
@@ -104,7 +116,34 @@ export const ProductDetailPage: React.FC = () => {
     const match =
       product.variants.find(v => v.color === color && v.size === currentSize) ||
       product.variants.find(v => v.color === color);
-    if (match) setSelectedVariant(match);
+    if (match) {
+      setSelectedVariant(match);
+      const colorImg =
+        match.image ||
+        (product.colorImages && product.colorImages[color]?.[0]) ||
+        product.variants.find(v => v.color === color && v.image)?.image;
+      if (colorImg) {
+        setSelectedImage(colorImg);
+      }
+    }
+  };
+
+  const handleThumbnailClick = (img: string) => {
+    setSelectedImage(img);
+    const matchedVar = product.variants.find(v => v.image === img);
+    if (matchedVar) {
+      const sameSizeMatch = product.variants.find(v => v.color === matchedVar.color && v.size === selectedVariant?.size);
+      setSelectedVariant(sameSizeMatch || matchedVar);
+    } else if (product.colorImages) {
+      const colorEntry = Object.entries(product.colorImages).find(([_, imgs]) => Array.isArray(imgs) && imgs.includes(img));
+      if (colorEntry) {
+        const [color] = colorEntry;
+        const match =
+          product.variants.find(v => v.color === color && v.size === selectedVariant?.size) ||
+          product.variants.find(v => v.color === color);
+        if (match) setSelectedVariant(match);
+      }
+    }
   };
 
   const handleAddToCart = () => {
@@ -113,9 +152,39 @@ export const ProductDetailPage: React.FC = () => {
   };
 
   const handleBuyNow = () => {
-    if (!selectedVariant) return;
+    if (!selectedVariant || !product) return;
+    const buyItem: CartItem = {
+      id: `${product.id}_${selectedVariant.id}`,
+      productId: product.id,
+      variantId: selectedVariant.id,
+      productName: product.name,
+      slug: product.slug,
+      size: selectedVariant.size,
+      color: selectedVariant.color,
+      colorCode: selectedVariant.colorCode,
+      price: selectedVariant.price || product.salePrice || product.price,
+      originalPrice: product.price,
+      quantity,
+      image: selectedVariant.image || selectedImage || (product.images && product.images[0]) || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800',
+      maxStock: selectedVariant.stock,
+      sku: selectedVariant.sku,
+    };
     addToCart(product, selectedVariant, quantity);
-    navigate('/cart');
+    navigate('/checkout', { state: { selectedItems: [buyItem] } });
+  };
+
+  const handleVoteHelpful = async (reviewId: string) => {
+    if (hasVotedHelpful[reviewId]) return;
+    setHasVotedHelpful(prev => ({ ...prev, [reviewId]: true }));
+    setHelpfulVotes(prev => ({
+      ...prev,
+      [reviewId]: (prev[reviewId] ?? (reviews.find(r => r.id === reviewId)?.helpfulCount || 0)) + 1,
+    }));
+    try {
+      await api.reviews.voteHelpful(reviewId);
+    } catch {
+      // Optimistic update
+    }
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -135,11 +204,17 @@ export const ProductDetailPage: React.FC = () => {
         productId: product.id,
         rating: reviewRating,
         comment: reviewComment.trim(),
+        images: reviewImageInput.trim() ? [reviewImageInput.trim()] : [],
+        variantInfo: selectedVariant
+          ? `Phân loại hàng: ${selectedVariant.color}, Size ${selectedVariant.size}`
+          : undefined,
       });
       if (res.success && res.data) {
         success('Cảm ơn bạn! Đánh giá đã được gửi thành công.');
         setReviews(prev => [res.data, ...prev]);
         setReviewComment('');
+        setReviewImageInput('');
+        setShowReviewForm(false);
       }
     } catch (err: any) {
       error(err.message || 'Lỗi gửi đánh giá');
@@ -147,6 +222,27 @@ export const ProductDetailPage: React.FC = () => {
       setSubmittingReview(false);
     }
   };
+
+  // Shopee Review statistics & filtering
+  const totalReviewsCount = reviews.length;
+  const count5Star = reviews.filter(r => r.rating === 5).length;
+  const count4Star = reviews.filter(r => r.rating === 4).length;
+  const count3Star = reviews.filter(r => r.rating === 3).length;
+  const count2Star = reviews.filter(r => r.rating === 2).length;
+  const count1Star = reviews.filter(r => r.rating === 1).length;
+  const countWithImages = reviews.filter(r => r.images && r.images.length > 0).length;
+  const countWithComments = reviews.filter(r => r.comment && r.comment.trim().length > 0).length;
+
+  const filteredReviews = reviews.filter(r => {
+    if (reviewFilter === '5') return r.rating === 5;
+    if (reviewFilter === '4') return r.rating === 4;
+    if (reviewFilter === '3') return r.rating === 3;
+    if (reviewFilter === '2') return r.rating === 2;
+    if (reviewFilter === '1') return r.rating === 1;
+    if (reviewFilter === 'IMAGES') return r.images && r.images.length > 0;
+    if (reviewFilter === 'COMMENTS') return r.comment && r.comment.trim().length > 0;
+    return true;
+  });
 
   const discount =
     product.salePrice && product.salePrice < product.price
@@ -187,12 +283,13 @@ export const ProductDetailPage: React.FC = () => {
               {product.images.map((img, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setSelectedImage(img)}
-                  className={`w-20 h-24 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                  onClick={() => handleThumbnailClick(img)}
+                  className={`w-20 h-24 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
                     selectedImage === img
-                      ? 'border-zinc-950 shadow-md scale-102'
-                      : 'border-transparent opacity-70 hover:opacity-100'
+                      ? 'border-zinc-950 shadow-md scale-102 ring-2 ring-zinc-950/20'
+                      : 'border-transparent opacity-70 hover:opacity-100 hover:scale-102'
                   }`}
+                  title="Bấm để xem ảnh này"
                 >
                   <img src={img} alt="Thumbnail" className="w-full h-full object-cover" />
                 </button>
@@ -211,25 +308,62 @@ export const ProductDetailPage: React.FC = () => {
               {product.name}
             </h1>
 
-            {/* Rating & Sold count */}
-            <div className="flex items-center gap-3 mt-3 text-xs">
-              <div className="flex items-center gap-1 text-amber-400">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    className={`w-4 h-4 ${
-                      i < Math.round(product.rating)
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'text-zinc-200'
-                    }`}
-                  />
-                ))}
-                <span className="font-bold text-zinc-800 ml-1">{product.rating}</span>
+            {/* Rating, 5-Star Count & Sold Count (Shopee Style) */}
+            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+              <a
+                href="#reviews-section"
+                className="flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-pointer group"
+              >
+                <div className="flex items-center gap-1 text-amber-500">
+                  <span className="font-extrabold text-sm text-amber-600 border-b border-amber-500 pb-0.5">
+                    {product.rating ? product.rating.toFixed(1) : '5.0'}
+                  </span>
+                  <div className="flex items-center">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-3.5 h-3.5 ${
+                          i < Math.round(product.rating || 5)
+                            ? 'fill-amber-400 text-amber-400'
+                            : 'text-zinc-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </a>
+
+              <span className="text-zinc-300">|</span>
+
+              <a
+                href="#reviews-section"
+                className="flex items-center gap-1 hover:text-[#ee4d2d] transition-colors cursor-pointer group"
+              >
+                <span className="font-bold text-zinc-950 border-b border-zinc-950 group-hover:border-[#ee4d2d]">
+                  {totalReviewsCount}
+                </span>
+                <span className="text-zinc-500">Đánh Giá</span>
+              </a>
+
+              <span className="text-zinc-300">|</span>
+
+              {/* Nổi bật số lần đánh giá 5 sao chuẩn Shopee */}
+              <a
+                href="#reviews-section"
+                onClick={() => setReviewFilter('5')}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-bold text-[11px] shadow-xs cursor-pointer transition-colors"
+                title="Bấm để xem các đánh giá 5 sao"
+              >
+                <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                {count5Star} lượt đánh giá 5 sao
+              </a>
+
+              <span className="text-zinc-300">|</span>
+
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-zinc-950">{product.soldCount}</span>
+                <span className="text-zinc-500">Đã Bán</span>
               </div>
-              <span className="text-zinc-300">•</span>
-              <span className="text-zinc-500">{reviews.length} đánh giá</span>
-              <span className="text-zinc-300">•</span>
-              <span className="text-zinc-500">{product.soldCount} đã bán</span>
             </div>
           </div>
 
@@ -248,27 +382,46 @@ export const ProductDetailPage: React.FC = () => {
           {/* Color Selector */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900">
-                Màu sắc: <strong className="text-zinc-600 font-normal">{selectedVariant?.color}</strong>
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-900 flex items-center gap-2">
+                Màu sắc:
+                <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-900 font-bold border border-zinc-200">
+                  {selectedVariant?.color || 'Chưa chọn'}
+                </span>
+              </span>
+              <span className="text-[11px] text-zinc-400 font-medium">
+                (Ấn màu nào sẽ chuyển sang ảnh màu đó)
               </span>
             </div>
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
               {uniqueColors.map((c, i) => {
                 const isSelected = selectedVariant?.color === c.color;
+                const colorImg =
+                  (product.colorImages && product.colorImages[c.color]?.[0]) ||
+                  product.variants.find(v => v.color === c.color && v.image)?.image;
+
                 return (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => handleColorClick(c.color)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-zinc-950 bg-zinc-950 text-white shadow'
-                        : 'border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400'
+                        ? 'border-zinc-950 bg-zinc-950 text-white shadow-md ring-2 ring-zinc-950/20 scale-102'
+                        : 'border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50'
                     }`}
                   >
-                    <span
-                      className="w-3.5 h-3.5 rounded-full border border-black/20"
-                      style={{ backgroundColor: c.colorCode || '#000000' }}
-                    />
+                    {colorImg ? (
+                      <img
+                        src={colorImg}
+                        alt={c.color}
+                        className="w-4.5 h-4.5 rounded-full object-cover border border-black/20 shrink-0"
+                      />
+                    ) : (
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0"
+                        style={{ backgroundColor: c.colorCode || '#000000' }}
+                      />
+                    )}
                     <span>{c.color}</span>
                   </button>
                 );
@@ -282,11 +435,16 @@ export const ProductDetailPage: React.FC = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-zinc-900">
                 Kích thước (Size): <strong className="text-zinc-600 font-normal">{selectedVariant?.size}</strong>
               </span>
-              <span className="text-xs text-zinc-500 hover:underline cursor-pointer">
-                Bảng quy đổi size
-              </span>
+              <Link
+                to="/size-guide"
+                target="_blank"
+                className="text-xs text-zinc-500 hover:text-zinc-950 hover:underline cursor-pointer flex items-center gap-1 font-medium"
+                title="Xem bảng quy đổi size chi tiết"
+              >
+                📏 Bảng quy đổi size
+              </Link>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {uniqueSizes.map(size => {
                 const isSelected = selectedVariant?.size === size;
                 return (
@@ -388,115 +546,473 @@ export const ProductDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Customer Reviews Section */}
-      <section className="pt-12 border-t border-zinc-200">
-        <div className="max-w-3xl">
-          <h2 className="font-serif-title text-2xl font-bold text-zinc-950 mb-6">
-            Đánh Giá Từ Khách Hàng ({reviews.length})
-          </h2>
+      {/* Customer Reviews Section - Shopee Style */}
+      <section id="reviews-section" className="pt-12 border-t border-zinc-200 scroll-mt-20">
+        <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
+          {/* Section Header */}
+          <div className="px-6 py-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50/50">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-zinc-950 uppercase tracking-wide flex items-center gap-2">
+                <span>ĐÁNH GIÁ SẢN PHẨM</span>
+                <span className="text-sm font-normal text-zinc-500">({totalReviewsCount} đánh giá)</span>
+              </h2>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Đánh giá chân thực từ khách hàng đã mua và xác thực đơn hàng tại NGUYÊN Fashion
+              </p>
+            </div>
 
-          {/* Add Review Form */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm mb-8">
-            <h3 className="font-bold text-sm text-zinc-900 mb-3">
-              Viết nhận xét của bạn về sản phẩm này
-            </h3>
-
-            {isAuthenticated ? (
-              <form onSubmit={handleReviewSubmit} className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-zinc-700">Đánh giá số sao:</span>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button
-                        type="button"
-                        key={star}
-                        onClick={() => setReviewRating(star)}
-                        className="p-1 text-amber-400 hover:scale-110 transition-transform"
-                      >
-                        <Star
-                          className={`w-5 h-5 ${
-                            star <= reviewRating ? 'fill-amber-400' : 'text-zinc-300'
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <textarea
-                  rows={3}
-                  required
-                  value={reviewComment}
-                  onChange={e => setReviewComment(e.target.value)}
-                  placeholder="Chia sẻ cảm nhận của bạn về chất vải, form dáng, độ vừa vặn..."
-                  className="w-full p-3 bg-zinc-50 border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
-                />
-
-                <button
-                  type="submit"
-                  disabled={submittingReview}
-                  className="px-6 py-2.5 bg-zinc-950 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
-                >
-                  <Send className="w-3.5 h-3.5" /> Gửi Đánh Giá
-                </button>
-              </form>
-            ) : (
-              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 flex items-center justify-between">
-                <span>Bạn cần đăng nhập để gửi đánh giá cho sản phẩm này.</span>
-                <Link
-                  to="/login"
-                  className="font-bold text-zinc-950 underline hover:text-zinc-700"
-                >
-                  Đăng nhập ngay
-                </Link>
-              </div>
-            )}
+            <button
+              onClick={() => setShowReviewForm(!showReviewForm)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer w-fit"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              {showReviewForm ? 'Đóng Form Đánh Giá' : 'Viết Đánh Giá Của Bạn'}
+            </button>
           </div>
 
-          {/* Reviews List */}
-          <div className="space-y-4">
-            {reviews.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic">
-                Chưa có đánh giá nào. Hãy là người đầu tiên trải nghiệm và chia sẻ!
-              </p>
-            ) : (
-              reviews.map(r => (
-                <div
-                  key={r.id}
-                  className="p-4 bg-white rounded-2xl border border-zinc-200 space-y-2 text-xs shadow-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xs uppercase">
-                        {r.userName[0]}
-                      </div>
-                      <div>
-                        <span className="font-bold text-zinc-900 block">{r.userName}</span>
-                        <span className="text-[10px] text-zinc-400">
-                          {new Date(r.createdAt).toLocaleDateString('vi-VN')}
-                        </span>
-                      </div>
-                    </div>
+          {/* Shopee Rating Overview & Filter Bar */}
+          <div className="p-6 bg-[#fffbf8] border-b border-[#f9ede5] grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+            {/* Left: Overall Rating & 5-Star Highlight */}
+            <div className="lg:col-span-4 flex flex-col sm:flex-row items-center sm:items-start gap-5 border-b lg:border-b-0 lg:border-r border-[#f3e5da] pb-6 lg:pb-0 lg:pr-6">
+              <div className="text-center sm:text-left shrink-0">
+                <div className="flex items-baseline justify-center sm:justify-start gap-1">
+                  <span className="text-4xl sm:text-5xl font-black text-[#ee4d2d] font-serif-title leading-none">
+                    {product.rating ? product.rating.toFixed(1) : '5.0'}
+                  </span>
+                  <span className="text-base sm:text-lg font-medium text-[#ee4d2d]">trên 5</span>
+                </div>
+                <div className="flex items-center gap-0.5 text-[#ee4d2d] my-2 justify-center sm:justify-start">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < Math.round(product.rating || 5)
+                          ? 'fill-[#ee4d2d] text-[#ee4d2d]'
+                          : 'text-zinc-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+                {/* Shopee 5-star highlight tag */}
+                <div className="mt-1 inline-flex items-center gap-1.5 bg-amber-100/90 text-amber-900 border border-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs">
+                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <span>{count5Star} lượt đánh giá 5 sao</span>
+                </div>
+              </div>
 
-                    <div className="flex items-center gap-0.5 text-amber-400">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-3.5 h-3.5 ${
-                            i < r.rating ? 'fill-amber-400' : 'text-zinc-200'
+              {/* Star breakdown bar chart */}
+              <div className="flex-1 w-full space-y-1.5 text-[11px] text-zinc-600">
+                {[5, 4, 3, 2, 1].map(star => {
+                  const c = reviews.filter(r => r.rating === star).length;
+                  const pct = totalReviewsCount > 0 ? Math.round((c / totalReviewsCount) * 100) : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-2">
+                      <span className="w-10 font-semibold text-zinc-700">{star} sao</span>
+                      <div className="flex-1 h-2 bg-zinc-200/90 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            star === 5 ? 'bg-[#ee4d2d]' : star === 4 ? 'bg-amber-400' : 'bg-zinc-400'
                           }`}
+                          style={{ width: `${pct}%` }}
                         />
+                      </div>
+                      <span className="w-8 text-right text-[10px] text-zinc-500 font-medium">{c}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: Shopee Filter Buttons */}
+            <div className="lg:col-span-8 flex flex-wrap gap-2.5">
+              <button
+                type="button"
+                onClick={() => setReviewFilter('ALL')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                  reviewFilter === 'ALL'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                Tất Cả ({totalReviewsCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('5')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                  reviewFilter === '5'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-amber-900 border border-amber-300 hover:border-[#ee4d2d] font-semibold bg-amber-50/50'
+                }`}
+              >
+                <Star className={`w-3.5 h-3.5 ${reviewFilter === '5' ? 'fill-white text-white' : 'fill-amber-500 text-amber-500'}`} />
+                5 Sao ({count5Star})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('4')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                  reviewFilter === '4'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                4 Sao ({count4Star})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('3')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                  reviewFilter === '3'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                3 Sao ({count3Star})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('2')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                  reviewFilter === '2'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                2 Sao ({count2Star})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('1')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer ${
+                  reviewFilter === '1'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                1 Sao ({count1Star})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('IMAGES')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                  reviewFilter === 'IMAGES'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                Có Hình Ảnh ({countWithImages})
+              </button>
+              <button
+                type="button"
+                onClick={() => setReviewFilter('COMMENTS')}
+                className={`px-4 py-2 rounded-lg text-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                  reviewFilter === 'COMMENTS'
+                    ? 'bg-[#ee4d2d] text-white font-bold border border-[#ee4d2d] shadow-sm'
+                    : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Có Bình Luận ({countWithComments})
+              </button>
+            </div>
+          </div>
+
+          {/* Add Review Form (Collapsible) */}
+          {showReviewForm && (
+            <div className="p-6 bg-zinc-50/80 border-b border-zinc-200">
+              <h3 className="font-bold text-sm text-zinc-900 mb-1 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                Chia sẻ đánh giá và trải nghiệm của bạn
+              </h3>
+              <p className="text-xs text-zinc-500 mb-4">
+                Đánh giá của bạn sẽ giúp cộng đồng người mua tại Nguyên Fashion có cái nhìn trực quan nhất
+              </p>
+
+              {isAuthenticated ? (
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    <span className="text-xs font-semibold text-zinc-700">Chất lượng sản phẩm:</span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          type="button"
+                          key={star}
+                          onClick={() => setReviewRating(star)}
+                          className="p-1 text-amber-400 hover:scale-110 transition-transform cursor-pointer"
+                          title={`${star} sao`}
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              star <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-zinc-200'
+                            }`}
+                          />
+                        </button>
                       ))}
                     </div>
+                    <span className="text-xs font-bold text-amber-700">
+                      {reviewRating === 5 && '⭐⭐⭐⭐⭐ Tuyệt vời'}
+                      {reviewRating === 4 && '⭐⭐⭐⭐ Hài lòng'}
+                      {reviewRating === 3 && '⭐⭐⭐ Bình thường'}
+                      {reviewRating === 2 && '⭐⭐ Không hài lòng'}
+                      {reviewRating === 1 && '⭐ Rất tệ'}
+                    </span>
                   </div>
 
-                  <p className="text-zinc-700 leading-relaxed pt-1">{r.comment}</p>
+                  {selectedVariant && (
+                    <div className="text-xs text-zinc-600 bg-white p-2.5 rounded-lg border border-zinc-200 w-fit">
+                      <span className="font-semibold text-zinc-800">Phân loại đang chọn: </span>
+                      <span className="text-zinc-700">{selectedVariant.color}, Size {selectedVariant.size}</span>
+                    </div>
+                  )}
+
+                  <textarea
+                    rows={3}
+                    required
+                    value={reviewComment}
+                    onChange={e => setReviewComment(e.target.value)}
+                    placeholder="Hãy chia sẻ nhận xét chi tiết về chất vải, độ dày dặn, form dáng, dịch vụ giao hàng..."
+                    className="w-full p-3.5 bg-white border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950 font-medium"
+                  />
+
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="url"
+                      value={reviewImageInput}
+                      onChange={e => setReviewImageInput(e.target.value)}
+                      placeholder="Link hình ảnh feedback thực tế (không bắt buộc, ví dụ https://...)"
+                      className="flex-1 p-2.5 bg-white border border-zinc-300 rounded-xl text-xs text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowReviewForm(false)}
+                      className="px-4 py-2 border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingReview}
+                      className="px-6 py-2 bg-[#ee4d2d] hover:bg-[#d83c1d] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" /> Hoàn Thành & Gửi Đánh Giá
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="p-4 rounded-xl bg-white border border-zinc-200 text-xs text-zinc-600 flex items-center justify-between">
+                  <span>Vui lòng đăng nhập để gửi đánh giá và ghi chú cho sản phẩm này.</span>
+                  <Link
+                    to="/login"
+                    className="font-bold text-[#ee4d2d] underline hover:opacity-80"
+                  >
+                    Đăng nhập ngay
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Review Items List */}
+          <div className="divide-y divide-zinc-100">
+            {filteredReviews.length === 0 ? (
+              <div className="p-12 text-center text-zinc-500">
+                <p className="text-sm font-medium">Chưa có đánh giá nào phù hợp với bộ lọc đã chọn.</p>
+                <button
+                  type="button"
+                  onClick={() => setReviewFilter('ALL')}
+                  className="mt-3 px-4 py-2 bg-zinc-950 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  Xem tất cả ({totalReviewsCount}) đánh giá
+                </button>
+              </div>
+            ) : (
+              filteredReviews.map(r => (
+                <div key={r.id} className="p-6 transition-colors hover:bg-zinc-50/50">
+                  <div className="flex items-start gap-3.5">
+                    {/* User Avatar */}
+                    {r.userAvatar ? (
+                      <img
+                        src={r.userAvatar}
+                        alt={r.userName}
+                        className="w-10 h-10 rounded-full object-cover shrink-0 border border-zinc-200 shadow-xs"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-zinc-950 text-white flex items-center justify-center font-bold text-xs uppercase shrink-0 shadow-xs">
+                        {r.userName ? r.userName[0] : 'U'}
+                      </div>
+                    )}
+
+                    {/* Review Body */}
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-xs text-zinc-900">{r.userName}</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                              Đã mua hàng tại NGUYÊN Fashion
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Stars */}
+                        <div className="flex items-center gap-0.5 text-amber-400">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < r.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Date & Variant tag (Shopee style) */}
+                      <div className="text-[11px] text-zinc-400 flex flex-wrap items-center gap-2">
+                        <span>
+                          {new Date(r.createdAt).toLocaleDateString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {r.variantInfo && (
+                          <>
+                            <span className="text-zinc-300">|</span>
+                            <span className="text-zinc-500 font-medium">{r.variantInfo}</span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Shopee Feedback Criteria Tags */}
+                      {(r.matchDescription || r.qualityFeedback || r.fitFeedback) && (
+                        <div className="space-y-1 text-xs pt-1">
+                          {r.matchDescription && (
+                            <div className="text-zinc-600">
+                              <span className="text-zinc-400">Đúng với mô tả: </span>
+                              <span className="font-medium text-zinc-800">{r.matchDescription}</span>
+                            </div>
+                          )}
+                          {r.qualityFeedback && (
+                            <div className="text-zinc-600">
+                              <span className="text-zinc-400">Chất lượng sản phẩm: </span>
+                              <span className="font-medium text-zinc-800">{r.qualityFeedback}</span>
+                            </div>
+                          )}
+                          {r.fitFeedback && (
+                            <div className="text-zinc-600">
+                              <span className="text-zinc-400">Độ vừa vặn: </span>
+                              <span className="font-medium text-zinc-800">{r.fitFeedback}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Comment text */}
+                      <p className="text-xs text-zinc-800 leading-relaxed font-normal pt-1 whitespace-pre-line">
+                        {r.comment}
+                      </p>
+
+                      {/* Review Images Gallery (Shopee style thumbnails) */}
+                      {r.images && r.images.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {r.images.map((img, imgIdx) => (
+                            <button
+                              key={imgIdx}
+                              type="button"
+                              onClick={() => setLightboxImage(img)}
+                              className="w-18 h-18 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-zinc-200 hover:border-zinc-400 transition-all cursor-pointer group shrink-0 relative"
+                            >
+                              <img
+                                src={img}
+                                alt={`Feedback ${imgIdx + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Shopee Seller Response Box */}
+                      {r.sellerReply && (
+                        <div className="mt-3 p-3.5 bg-zinc-50 border border-zinc-200/90 rounded-xl text-xs space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-zinc-900 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-[#ee4d2d]"></span>
+                              Phản hồi của Người Bán (Nguyên Fashion)
+                            </span>
+                            {r.sellerReplyDate && (
+                              <span className="text-[10px] text-zinc-400">
+                                {new Date(r.sellerReplyDate).toLocaleDateString('vi-VN')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-zinc-600 leading-relaxed font-normal">
+                            {r.sellerReply}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Helpful Button (Shopee Style) */}
+                      <div className="pt-2 flex items-center gap-3 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => handleVoteHelpful(r.id)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] transition-colors cursor-pointer ${
+                            hasVotedHelpful[r.id]
+                              ? 'border-rose-300 bg-rose-50 text-rose-600 font-bold'
+                              : 'border-zinc-200 hover:bg-zinc-50 text-zinc-600'
+                          }`}
+                        >
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          <span>Hữu ích ({helpfulVotes[r.id] ?? r.helpfulCount ?? 0})</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
       </section>
+
+      {/* Lightbox Modal for Review Photos */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-3xl max-h-[90vh] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl p-2"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={lightboxImage}
+              alt="Feedback phóng to"
+              className="max-h-[80vh] w-auto max-w-full object-contain rounded-xl mx-auto"
+            />
+            <div className="p-3 text-center text-xs text-zinc-400">
+              Ảnh feedback thực tế từ người mua tại NGUYÊN Fashion
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Related Products Carousel / Grid */}
       {relatedProducts.length > 0 && (

@@ -3,15 +3,27 @@ import { db } from '../db/database.js';
 
 const router = Router();
 
+// Vouchers available to all shoppers; private account vouchers are not stored yet.
+router.get('/', (_req: Request, res: Response) => {
+  const today = new Date().toISOString().split('T')[0];
+  const coupons = db.listCoupons().filter(c =>
+    c.status === 'ACTIVE' && c.startDate <= today && c.endDate >= today && c.usedCount < c.usageLimit
+  );
+  return res.json({ success: true, data: coupons });
+});
+
 // POST /api/coupons/validate
 router.post('/validate', (req: Request, res: Response) => {
   try {
     const { code, subtotal } = req.body;
+    if (typeof subtotal !== 'number' || !Number.isFinite(subtotal) || subtotal < 0 || (code != null && typeof code !== 'string')) {
+      return res.status(400).json({ success: false, message: 'Dữ liệu mã giảm giá hoặc tiền hàng không hợp lệ' });
+    }
     if (!code) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập mã giảm giá' });
     }
 
-    const coupon = db.findCouponByCode(code);
+    const coupon = db.findCouponByCode(code.trim());
     if (!coupon) {
       return res.status(404).json({ success: false, message: 'Mã giảm giá không tồn tại hoặc đã hết hạn' });
     }
@@ -51,6 +63,8 @@ router.post('/validate', (req: Request, res: Response) => {
         discountType: coupon.discountType,
         discountValue: coupon.discountValue,
         discountAmount,
+        minOrderValue: coupon.minOrderValue,
+        maxDiscount: coupon.maxDiscount,
       },
     });
   } catch (error: any) {

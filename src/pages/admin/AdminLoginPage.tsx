@@ -4,9 +4,12 @@ import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, CheckCircle2 } from '
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
+const DEMO_ADMIN_EMAIL = 'phannguyen27082005@gmail.com';
+const DEMO_ADMIN_PASSWORD = 'Admin@123456';
+
 export const AdminLoginPage: React.FC = () => {
-  const [email, setEmail] = useState('nguyen106436@donga.edu.vn');
-  const [password, setPassword] = useState('Admin@123456');
+  const [email, setEmail] = useState(DEMO_ADMIN_EMAIL);
+  const [password, setPassword] = useState(DEMO_ADMIN_PASSWORD);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -157,8 +160,8 @@ export const AdminLoginPage: React.FC = () => {
                 <span>Tài khoản Admin mặc định để kiểm thử:</span>
               </div>
               <div className="space-y-1 font-mono text-[11px] text-zinc-300">
-                <p>Email: <span className="text-white">nguyen106436@donga.edu.vn</span></p>
-                <p>Password: <span className="text-white">Admin@123456</span></p>
+                <p>Tài khoản: <span className="text-white break-all">{DEMO_ADMIN_EMAIL}</span></p>
+                <p>Mật khẩu: <span className="text-white">{DEMO_ADMIN_PASSWORD}</span></p>
               </div>
             </div>
           </div>

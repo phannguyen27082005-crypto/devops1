@@ -81,6 +81,13 @@ export interface ReviewData {
   images?: string[];
   status: 'APPROVED' | 'HIDDEN';
   createdAt: string;
+  variantInfo?: string;
+  sellerReply?: string;
+  sellerReplyDate?: string;
+  fitFeedback?: string;
+  qualityFeedback?: string;
+  matchDescription?: string;
+  helpfulCount?: number;
 }
 
 export const INITIAL_CATEGORIES: CategoryData[] = [

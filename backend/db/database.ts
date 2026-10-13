@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
+import { matchesProductSearch } from './productSearch.js';
 import {
   CategoryData,
   ProductData,
@@ -44,6 +45,20 @@ export interface OrderItem {
   imageUrl?: string;
 }
 
+export interface OrderReturnRequest {
+  type: 'EXCHANGE_SIZE' | 'REFUND';
+  reason: string;
+  targetSize?: string;
+  bankInfo?: {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+  };
+  note?: string;
+  createdAt: string;
+  status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
+}
+
 export interface Order {
   id: string;
   orderCode: string;
@@ -56,6 +71,8 @@ export interface Order {
   district: string;
   ward: string;
   note?: string;
+  cancelReason?: string;
+  returnRequest?: OrderReturnRequest;
   subtotal: number;
   shippingFee: number;
   discountAmount: number;
@@ -63,7 +80,7 @@ export interface Order {
   couponCode?: string;
   paymentMethod: 'COD' | 'BANK_TRANSFER' | 'VNPAY' | 'MOMO';
   paymentStatus: 'PENDING' | 'PAID' | 'FAILED';
-  orderStatus: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+  orderStatus: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | 'RETURN_REQUESTED';
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -133,7 +150,7 @@ class DatabaseEngine {
       {
         id: 'usr-admin-1',
         name: 'Phan Nhất Nguyên-ST23B',
-        email: 'nguyen106436@donga.edu.vn',
+        email: 'phannguyen27082005@gmail.com',
         passwordHash: adminPasswordHash,
         phone: '0909123456',
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -322,15 +339,15 @@ class DatabaseEngine {
 
     const initialSettings: StoreSettings = {
       storeName: 'Nguyên Fashion Studio',
-      phone: '1900 6868',
-      email: 'contact@nguyenfashion.vn',
-      address: '158 Đồng Khởi, Bến Nghé, Quận 1, TP. Hồ Chí Minh',
+      phone: '0825 764 371',
+      email: 'phannguyen27082005@gmail.com',
+      address: '134 Nguyễn Đăng Đạo, Cẩm Lệ, TP. Đà Nẵng',
       openingHours: '08:30 - 22:00 (Tất cả các ngày trong tuần)',
       shippingFeeStandard: 30000,
       freeShippingThreshold: 500000,
-      bankName: 'Vietcombank - Chi nhánh TP.HCM',
-      bankAccountNumber: '0071001234567',
-      bankAccountName: 'CONG TY TNHH NGUYEN FASHION VIET NAM',
+      bankName: 'MB Bank (Ngân hàng TMCP Quân Đội)',
+      bankAccountNumber: '6000270805',
+      bankAccountName: 'PHAN NHAT NGUYEN',
     };
 
     const newState: DatabaseState = {
@@ -380,7 +397,9 @@ class DatabaseEngine {
 
   // --- USERS ---
   public findUserByEmail(email: string): User | undefined {
-    return this.state.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const q = email.toLowerCase().trim();
+    const user = this.state.users.find(u => u.email.toLowerCase() === q);
+    return user;
   }
 
   public findUserById(id: string): User | undefined {
@@ -479,12 +498,7 @@ class DatabaseEngine {
 
     // Search
     if (options?.search && options.search.trim()) {
-      const q = options.search.toLowerCase().trim();
-      list = list.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.brand.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
-      );
+      list = list.filter(p => matchesProductSearch(p, options.search!));
     }
 
     // Price
@@ -562,7 +576,24 @@ class DatabaseEngine {
   }
 
   public findProductById(id: string): ProductData | undefined {
-    const prod = this.state.products.find(p => p.id === id);
+    let prod = this.state.products.find(p => p.id === id);
+    if (!prod) {
+      prod = INITIAL_PRODUCTS.find(p => p.id === id);
+    }
+    if (!prod) return undefined;
+    const cat = this.state.categories.find(c => c.id === prod.categoryId);
+    return {
+      ...prod,
+      categoryName: cat?.name || '',
+    };
+  }
+
+  public findProductByName(name: string): ProductData | undefined {
+    const cleanName = (name || '').trim().toLowerCase();
+    let prod = this.state.products.find(p => p.name.trim().toLowerCase() === cleanName);
+    if (!prod) {
+      prod = INITIAL_PRODUCTS.find(p => p.name.trim().toLowerCase() === cleanName);
+    }
     if (!prod) return undefined;
     const cat = this.state.categories.find(c => c.id === prod.categoryId);
     return {
@@ -572,7 +603,10 @@ class DatabaseEngine {
   }
 
   public findProductBySlug(slug: string): ProductData | undefined {
-    const prod = this.state.products.find(p => p.slug === slug);
+    let prod = this.state.products.find(p => p.slug === slug);
+    if (!prod) {
+      prod = INITIAL_PRODUCTS.find(p => p.slug === slug);
+    }
     if (!prod) return undefined;
     const cat = this.state.categories.find(c => c.id === prod.categoryId);
     return {
@@ -736,6 +770,63 @@ class DatabaseEngine {
     return order;
   }
 
+  public cancelOrder(id: string, reason: string): Order | null {
+    const order = this.state.orders.find(o => o.id === id || o.orderCode === id);
+    if (!order) return null;
+    if (order.orderStatus === 'DELIVERED' || order.orderStatus === 'CANCELLED') {
+      return null;
+    }
+    order.orderStatus = 'CANCELLED';
+    order.cancelReason = reason;
+    order.updatedAt = new Date().toISOString();
+
+    // Restock variant quantities
+    for (const item of order.items) {
+      const prod = this.state.products.find(p => p.id === item.productId);
+      if (prod && item.variantId) {
+        const variant = prod.variants?.find(v => v.id === item.variantId);
+        if (variant) {
+          variant.stock += item.quantity;
+        }
+      }
+    }
+
+    this.saveState();
+    return order;
+  }
+
+  public requestReturnOrder(
+    id: string,
+    returnData: {
+      type: 'EXCHANGE_SIZE' | 'REFUND';
+      reason: string;
+      targetSize?: string;
+      bankInfo?: {
+        bankName: string;
+        accountNumber: string;
+        accountHolder: string;
+      };
+      note?: string;
+    }
+  ): Order | null {
+    const order = this.state.orders.find(o => o.id === id || o.orderCode === id);
+    if (!order) return null;
+    if (order.orderStatus === 'CANCELLED') {
+      return null;
+    }
+
+    order.orderStatus = 'RETURN_REQUESTED';
+    order.returnRequest = {
+      ...returnData,
+      createdAt: new Date().toISOString(),
+      status: 'PENDING',
+    };
+    order.updatedAt = new Date().toISOString();
+
+    this.saveState();
+    return order;
+  }
+
   // --- COUPONS ---
   public listCoupons(): CouponData[] {
     return this.state.coupons;
@@ -846,6 +937,14 @@ class DatabaseEngine {
     this.state.reviews = this.state.reviews.filter(r => r.id !== id);
     this.saveState();
     return true;
+  }
+
+  public incrementReviewHelpful(id: string): number {
+    const rev = this.state.reviews.find(r => r.id === id);
+    if (!rev) return 0;
+    rev.helpfulCount = (rev.helpfulCount || 0) + 1;
+    this.saveState();
+    return rev.helpfulCount;
   }
 
   // --- INVENTORY MANAGEMENT ---

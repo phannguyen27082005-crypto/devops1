@@ -2,14 +2,25 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { CartItem, Product, ProductVariant, Coupon } from '../types';
 import { api } from '../services/api';
 import { useNotification } from './NotificationContext';
-
-const CART_STORAGE_KEY = 'maison_shopping_cart';
+import { useAuth } from './AuthContext';
+import { cartStorageKey, readCart } from './cartStorage';
 
 interface CartContextType {
   items: CartItem[];
   addToCart: (product: Product, variant: ProductVariant, quantity?: number) => void;
   removeFromCart: (cartItemId: string) => void;
   updateQuantity: (cartItemId: string, newQuantity: number) => void;
+  updateItemVariant?: (
+    cartItemId: string,
+    newVariant: {
+      size: string;
+      color: string;
+      variantId?: string;
+      sku?: string;
+      colorCode?: string;
+      price?: number;
+    }
+  ) => void;
   clearCart: () => void;
   appliedCoupon: {
     code: string;
@@ -17,6 +28,8 @@ interface CartContextType {
     discountType: 'PERCENT' | 'FIXED';
     discountValue: number;
     discountAmount: number;
+    minOrderValue?: number;
+    maxDiscount?: number;
   } | null;
   couponCode?: string;
   applyCoupon: (code: string) => Promise<boolean>;
@@ -32,13 +45,21 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
+  const storageKey = cartStorageKey(isAuthenticated ? user?.id : undefined);
+  return <AccountCartProvider key={storageKey} storageKey={storageKey}
+    restoreAnLegacyCart={isAuthenticated && user?.email.toLowerCase() === 'an@gmail.com'}>
+    {children}
+  </AccountCartProvider>;
+};
+
+const AccountCartProvider: React.FC<{
+  children: React.ReactNode;
+  storageKey: string;
+  restoreAnLegacyCart: boolean;
+}> = ({ children, storageKey, restoreAnLegacyCart }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    return readCart(localStorage, storageKey, restoreAnLegacyCart);
   });
 
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -47,17 +68,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     discountType: 'PERCENT' | 'FIXED';
     discountValue: number;
     discountAmount: number;
+    minOrderValue?: number;
+    maxDiscount?: number;
   } | null>(null);
 
   const { success, error } = useNotification();
 
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(storageKey, JSON.stringify(items));
     } catch (err) {
       console.error('Failed to save cart to localStorage', err);
     }
-  }, [items]);
+  }, [items, storageKey]);
 
   const addToCart = (product: Product, variant: ProductVariant, quantity: number = 1) => {
     if (variant.stock <= 0) {
@@ -97,7 +120,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           price: variant.price || product.salePrice || product.price,
           originalPrice: product.price,
           quantity: Math.min(variant.stock, quantity),
-          image: product.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800',
+          image: variant.image || (product.colorImages && product.colorImages[variant.color]?.[0]) || product.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800',
           maxStock: variant.stock,
           sku: variant.sku,
         };
@@ -132,6 +155,35 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const updateItemVariant = (
+    cartItemId: string,
+    newVariant: {
+      size: string;
+      color: string;
+      variantId?: string;
+      sku?: string;
+      colorCode?: string;
+      price?: number;
+    }
+  ) => {
+    setItems(prev =>
+      prev.map(i => {
+        if (i.id === cartItemId || i.variantId === cartItemId) {
+          return {
+            ...i,
+            size: newVariant.size,
+            color: newVariant.color,
+            variantId: newVariant.variantId || i.variantId,
+            sku: newVariant.sku || i.sku,
+            colorCode: newVariant.colorCode || i.colorCode,
+            price: newVariant.price !== undefined ? newVariant.price : i.price,
+          };
+        }
+        return i;
+      })
+    );
+  };
+
   const clearCart = () => {
     setItems([]);
     setAppliedCoupon(null);
@@ -148,9 +200,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Recalculate coupon discount whenever subtotal changes
   const discountAmount = useMemo(() => {
-    if (!appliedCoupon || items.length === 0) return 0;
+    if (!appliedCoupon || items.length === 0 || subtotal < (appliedCoupon.minOrderValue || 0)) return 0;
     if (appliedCoupon.discountType === 'PERCENT') {
-      return Math.round((subtotal * appliedCoupon.discountValue) / 100);
+      const amount = Math.round((subtotal * appliedCoupon.discountValue) / 100);
+      return appliedCoupon.maxDiscount ? Math.min(amount, appliedCoupon.maxDiscount) : amount;
     }
     return appliedCoupon.discountValue;
   }, [appliedCoupon, subtotal, items.length]);
@@ -202,6 +255,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addToCart,
         removeFromCart,
         updateQuantity,
+        updateItemVariant,
         clearCart,
         appliedCoupon,
         applyCoupon,

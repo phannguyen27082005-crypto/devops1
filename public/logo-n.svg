@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="nGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e4e4e7"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#be123c"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded Squircle Badge -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bgGrad)" filter="url(#shadow)"/>
+  <rect x="8.5" y="8.5" width="111" height="111" rx="27.5" fill="none" stroke="#27272a" stroke-width="1.5"/>
+
+  <!-- Stylized Luxury Letter N -->
+  <g fill="url(#nGrad)">
+    <!-- Left vertical stem -->
+    <path d="M 38 32 L 48 32 L 48 96 L 38 96 Z"/>
+    <!-- Diagonal stroke -->
+    <path d="M 46 32 L 56 32 L 82 86 L 82 96 L 72 96 L 46 42 Z"/>
+    <!-- Right vertical stem -->
+    <path d="M 80 32 L 90 32 L 90 96 L 80 96 Z"/>
+  </g>
+
+  <!-- Accent dot / star -->
+  <circle cx="94" cy="34" r="5" fill="url(#accentGrad)"/>
+</svg>

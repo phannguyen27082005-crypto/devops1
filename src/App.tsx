@@ -26,6 +26,9 @@ import { CustomerLoginPage } from './pages/customer/CustomerLoginPage';
 import { CustomerRegisterPage } from './pages/customer/CustomerRegisterPage';
 import { AboutPage } from './pages/customer/AboutPage';
 import { ContactPage } from './pages/customer/ContactPage';
+import { SizeGuidePage } from './pages/customer/SizeGuidePage';
+import { ReturnPolicyPage } from './pages/customer/ReturnPolicyPage';
+import { PrivacyPolicyPage } from './pages/customer/PrivacyPolicyPage';
 
 // Admin Pages
 import { AdminLoginPage } from './pages/admin/AdminLoginPage';
@@ -57,11 +60,15 @@ export default function App() {
                 <Route path="/checkout" element={<CheckoutPage />} />
                 <Route path="/order-success/:orderCode" element={<OrderSuccessPage />} />
                 <Route path="/profile" element={<CustomerProfilePage />} />
+                <Route path="/orders" element={<CustomerOrdersPage />} />
                 <Route path="/profile/orders" element={<CustomerOrdersPage />} />
                 <Route path="/login" element={<CustomerLoginPage />} />
                 <Route path="/register" element={<CustomerRegisterPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
+                <Route path="/size-guide" element={<SizeGuidePage />} />
+                <Route path="/return-policy" element={<ReturnPolicyPage />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               </Route>
 
               {/* 2. Admin Login (Direct URL only - No button on customer site) */}

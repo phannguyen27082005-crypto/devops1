@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS banners (
 -- Password for admin: Admin@123456 (bcrypt hash: $2a$10$7R93WdM.Rz0dE99cE8rT.ev0Nl4iPZsmD6eU7y0vG8g1YfFh49wPq)
 -- Password for customer: Customer@123456
 INSERT INTO users (id, name, email, password_hash, phone, role, status) VALUES
-('user-admin-1', 'Phan Nhất Nguyên-ST23B', 'nguyen106436@donga.edu.vn', '$2a$10$7R93WdM.Rz0dE99cE8rT.ev0Nl4iPZsmD6eU7y0vG8g1YfFh49wPq', '0909123456', 'ADMIN', 'ACTIVE')
+('user-admin-1', 'Phan Nhất Nguyên-ST23B', 'phannguyen27082005@gmail.com', '$2a$10$7R93WdM.Rz0dE99cE8rT.ev0Nl4iPZsmD6eU7y0vG8g1YfFh49wPq', '0909123456', 'ADMIN', 'ACTIVE')
 ON DUPLICATE KEY UPDATE id=id;
 
 INSERT INTO admins (id, user_id, department) VALUES

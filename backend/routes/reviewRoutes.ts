@@ -18,7 +18,7 @@ router.get('/:productId', (req, res) => {
 // POST /api/reviews (Customer submits review)
 router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
-    const { productId, rating, comment, images } = req.body;
+    const { productId, rating, comment, images, variantInfo } = req.body;
     const user = req.user!;
 
     if (!productId || !rating || !comment) {
@@ -43,6 +43,13 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
       rating: numRating,
       comment: comment.trim(),
       images: Array.isArray(images) ? images : [],
+      variantInfo: variantInfo || 'Khách hàng mua online',
+      fitFeedback: 'Chuẩn size theo bảng size shop cung cấp',
+      qualityFeedback: 'Chất vải cao cấp, đường may tỉ mỉ',
+      matchDescription: 'Đúng với mô tả 100%',
+      sellerReply: 'Dạ Nguyên Fashion xin chân thành cảm ơn bạn đã tin tưởng và đánh giá sản phẩm của shop ạ! Chúc bạn luôn xinh đẹp và tự tin cùng Nguyên Fashion! ❤️',
+      sellerReplyDate: new Date().toISOString(),
+      helpfulCount: 1,
     });
 
     return res.status(201).json({
@@ -52,6 +59,17 @@ router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'Lỗi gửi đánh giá', error: error.message });
+  }
+});
+
+// POST /api/reviews/:id/helpful (Vote review helpful)
+router.post('/:id/helpful', (req, res) => {
+  try {
+    const { id } = req.params;
+    const newCount = db.incrementReviewHelpful(id);
+    return res.json({ success: true, helpfulCount: newCount });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi cập nhật lượt hữu ích', error: error.message });
   }
 });
 

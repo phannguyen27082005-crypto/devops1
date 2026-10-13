@@ -84,6 +84,8 @@ export const AdminOrdersPage: React.FC = () => {
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Đã Giao Thành Công</span>;
       case 'CANCELLED':
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Đã Hủy Đơn</span>;
+      case 'RETURN_REQUESTED':
+        return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">🔄 Yêu Cầu Đổi Size / Trả Hàng</span>;
       default:
         return <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400">{status}</span>;
     }
@@ -316,7 +318,7 @@ export const AdminOrdersPage: React.FC = () => {
                   {activeOrder.shippingAddress}
                 </p>
                 <p className="text-zinc-400 font-medium">
-                  {activeOrder.ward}, {activeOrder.district}, {activeOrder.province}
+                  {[activeOrder.ward, activeOrder.district, activeOrder.province].filter(Boolean).join(', ')}
                 </p>
                 {activeOrder.note && (
                   <p className="text-amber-400 italic pt-1">

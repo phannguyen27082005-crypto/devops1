@@ -38,7 +38,7 @@ export const ContactPage: React.FC = () => {
               <MapPin className="w-4 h-4 text-zinc-400 mt-0.5" />
               <div>
                 <strong className="text-white block">Địa chỉ showroom:</strong>
-                <p className="text-zinc-300">158 Đồng Khởi, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh</p>
+                <p className="text-zinc-300">134 Nguyễn Đăng Đạo, Cẩm Lệ, TP. Đà Nẵng</p>
               </div>
             </div>
 
@@ -46,7 +46,7 @@ export const ContactPage: React.FC = () => {
               <Phone className="w-4 h-4 text-zinc-400 mt-0.5" />
               <div>
                 <strong className="text-white block">Hotline tư vấn:</strong>
-                <p className="text-zinc-300">1900 6868 (08:30 - 22:00)</p>
+                <p className="text-zinc-300">0825 764 371 (08:30 - 22:00)</p>
               </div>
             </div>
 
@@ -54,7 +54,7 @@ export const ContactPage: React.FC = () => {
               <Mail className="w-4 h-4 text-zinc-400 mt-0.5" />
               <div>
                 <strong className="text-white block">Email chăm sóc khách hàng:</strong>
-                <p className="text-zinc-300">contact@nguyenfashion.vn</p>
+                <p className="text-zinc-300"><a href="mailto:phannguyen27082005@gmail.com" className="hover:text-white transition-colors">phannguyen27082005@gmail.com</a></p>
               </div>
             </div>
 

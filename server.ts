@@ -89,6 +89,9 @@ app.use('/api', (err: any, _req: Request, res: Response, _next: any) => {
   });
 });
 
+// Serve public assets (images, QR codes, icons)
+app.use(express.static(path.join(process.cwd(), 'public')));
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     // Vite middleware for development

@@ -128,10 +128,22 @@ export const api = {
     getMyOrders: () => fetchWithAuth('/api/orders'),
     getById: (id: string) => fetchWithAuth(`/api/orders/${id}`),
     getByCode: (orderCode: string) => fetchWithAuth(`/api/orders/${orderCode}`),
+    cancelOrder: (id: string, reason: string) =>
+      fetchWithAuth(`/api/orders/${id}/cancel`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason }),
+      }),
+    requestReturn: (id: string, returnData: any) =>
+      fetchWithAuth(`/api/orders/${id}/return`, {
+        method: 'POST',
+        body: JSON.stringify(returnData),
+      }),
   },
 
   // Coupons
   coupons: {
+    getAvailable: (): Promise<{ success: boolean; data: Coupon[] }> =>
+      fetchWithAuth('/api/coupons'),
     validate: (code: string, subtotal: number) =>
       fetchWithAuth('/api/coupons/validate', {
         method: 'POST',
@@ -152,8 +164,10 @@ export const api = {
   // Reviews
   reviews: {
     getByProduct: (productId: string) => fetchWithAuth(`/api/reviews/${productId}`),
-    create: (data: { productId: string; rating: number; comment: string; images?: string[] }) =>
+    create: (data: { productId: string; rating: number; comment: string; images?: string[]; variantInfo?: string }) =>
       fetchWithAuth('/api/reviews', { method: 'POST', body: JSON.stringify(data) }),
+    voteHelpful: (reviewId: string) =>
+      fetchWithAuth(`/api/reviews/${reviewId}/helpful`, { method: 'POST' }),
   },
 
   // Upload

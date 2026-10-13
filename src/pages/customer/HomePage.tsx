@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   ShoppingBag,
@@ -12,9 +12,10 @@ import {
   RotateCcw,
   Truck,
   Heart,
+  Zap,
 } from 'lucide-react';
 import { api } from '../../services/api';
-import { Product, Category, Banner, Review } from '../../types';
+import { Product, Category, Banner, Review, CartItem } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useNotification } from '../../context/NotificationContext';
 
@@ -29,8 +30,107 @@ export const HomePage: React.FC = () => {
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Flash Sale Dynamic Countdown & Auto Batch Rotation
+  const [selectedSessionIdx, setSelectedSessionIdx] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<{ hours: string; minutes: string; seconds: string }>({
+    hours: '08',
+    minutes: '45',
+    seconds: '19',
+  });
+  const [currentSessionSlot, setCurrentSessionSlot] = useState(0);
+
+  const navigate = useNavigate();
   const { addToCart } = useCart();
   const { success } = useNotification();
+
+  // 8-hour session rotation cycle aligned to midnight (00:00, 08:00, 16:00)
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      let nextSessionHour = 8;
+      if (currentHour >= 16) {
+        nextSessionHour = 24;
+      } else if (currentHour >= 8) {
+        nextSessionHour = 16;
+      }
+
+      const nextSessionTime = new Date(now);
+      if (nextSessionHour === 24) {
+        nextSessionTime.setHours(24, 0, 0, 0);
+      } else {
+        nextSessionTime.setHours(nextSessionHour, 0, 0, 0);
+      }
+
+      const diffMs = nextSessionTime.getTime() - now.getTime();
+      const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      const slot = Math.floor(currentHour / 8);
+
+      return {
+        hours: String(h).padStart(2, '0'),
+        minutes: String(m).padStart(2, '0'),
+        seconds: String(s).padStart(2, '0'),
+        slot,
+      };
+    };
+
+    const initial = calculateTimeRemaining();
+    setTimeLeft({ hours: initial.hours, minutes: initial.minutes, seconds: initial.seconds });
+    setCurrentSessionSlot(initial.slot);
+
+    const timer = setInterval(() => {
+      const cur = calculateTimeRemaining();
+      setTimeLeft({ hours: cur.hours, minutes: cur.minutes, seconds: cur.seconds });
+      if (cur.slot !== currentSessionSlot) {
+        setCurrentSessionSlot(cur.slot);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [currentSessionSlot]);
+
+  const handleQuickAdd = (p: Product, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (p.variants && p.variants.length > 0) {
+      const variant = p.variants.find(v => v.stock > 0) || p.variants[0];
+      addToCart(p, variant, 1);
+    }
+  };
+
+  const handleQuickBuy = (p: Product, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (p.variants && p.variants.length > 0) {
+      const variant = p.variants.find(v => v.stock > 0) || p.variants[0];
+      const buyItem: CartItem = {
+        id: `${p.id}_${variant.id}`,
+        productId: p.id,
+        variantId: variant.id,
+        productName: p.name,
+        slug: p.slug,
+        size: variant.size,
+        color: variant.color,
+        colorCode: variant.colorCode,
+        price: variant.price || p.salePrice || p.price,
+        originalPrice: p.price,
+        quantity: 1,
+        image: p.images[0] || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?w=800',
+        maxStock: variant.stock,
+        sku: variant.sku,
+      };
+      addToCart(p, variant, 1);
+      navigate('/checkout', { state: { selectedItems: [buyItem] } });
+    }
+  };
 
   const getStock = (p: Product) => {
     return p.variants && p.variants.length > 0
@@ -44,7 +144,7 @@ export const HomePage: React.FC = () => {
         const [bannerRes, catRes, prodRes] = await Promise.all([
           api.banners.getAll(),
           api.categories.getAll(),
-          api.products.getAll({ limit: 30 }),
+          api.products.getAll({ limit: 60 }),
         ]);
 
         if (bannerRes.success && bannerRes.data) setBanners(bannerRes.data);
@@ -95,12 +195,15 @@ export const HomePage: React.FC = () => {
     buttonText: 'Khám Phá Bộ Sưu Tập',
   };
 
-  const handleQuickAdd = (p: Product) => {
-    const firstVariant = p.variants[0];
-    if (firstVariant) {
-      addToCart(p, firstVariant, 1);
-    }
-  };
+  // Determine active session & displayed batch
+  const activeSessionSlot = selectedSessionIdx !== null ? selectedSessionIdx : currentSessionSlot;
+  const batchSize = 4;
+  const totalSaleBatches = Math.max(1, Math.ceil(flashSaleProducts.length / batchSize));
+  const currentBatchIndex = activeSessionSlot % totalSaleBatches;
+  const displayedFlashSaleProducts = flashSaleProducts.slice(
+    currentBatchIndex * batchSize,
+    currentBatchIndex * batchSize + batchSize
+  );
 
   return (
     <div className="space-y-16 sm:space-y-24">
@@ -219,39 +322,92 @@ export const HomePage: React.FC = () => {
       {flashSaleProducts.length > 0 && (
         <section className="bg-zinc-950 text-white py-14 sm:py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 border-b border-zinc-800 pb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-zinc-800 pb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-600/30 animate-pulse">
                   <Flame className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="font-serif-title text-2xl sm:text-3xl font-bold tracking-tight">
-                    FLASH SALE HÔM NAY
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-serif-title text-2xl sm:text-3xl font-bold tracking-tight">
+                      FLASH SALE HÔM NAY
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-900/60 text-rose-300 border border-rose-700/60 uppercase">
+                      Đợt {currentBatchIndex + 1}/{totalSaleBatches}
+                    </span>
+                  </div>
                   <p className="text-xs text-zinc-400 mt-0.5">
-                    Số lượng giới hạn • Tiết kiệm lên đến 30% giá gốc
+                    Số lượng giới hạn • Tiết kiệm lên đến 30% giá gốc • Tự động đổi sản phẩm khi hết đợt
                   </p>
                 </div>
               </div>
 
+              {/* Dynamic Live Ticking Countdown Timer */}
               <div className="flex items-center gap-2 text-xs font-mono">
                 <span className="text-zinc-400">Kết thúc sau:</span>
-                <span className="px-2 py-1 rounded bg-zinc-900 border border-zinc-700 font-bold text-rose-400">
-                  08
+                <span className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 font-bold text-rose-400 shadow-inner">
+                  {timeLeft.hours}
                 </span>
-                <span>:</span>
-                <span className="px-2 py-1 rounded bg-zinc-900 border border-zinc-700 font-bold text-rose-400">
-                  45
+                <span className="text-zinc-500 animate-pulse font-bold">:</span>
+                <span className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 font-bold text-rose-400 shadow-inner">
+                  {timeLeft.minutes}
                 </span>
-                <span>:</span>
-                <span className="px-2 py-1 rounded bg-zinc-900 border border-zinc-700 font-bold text-rose-400">
-                  19
+                <span className="text-zinc-500 animate-pulse font-bold">:</span>
+                <span className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 font-bold text-rose-400 shadow-inner">
+                  {timeLeft.seconds}
                 </span>
               </div>
             </div>
 
+            {/* Flash Sale Session / Batch Switcher */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
+                {[
+                  { slot: 0, time: '00:00 - 08:00', label: 'Đợt 1' },
+                  { slot: 1, time: '08:00 - 16:00', label: 'Đợt 2' },
+                  { slot: 2, time: '16:00 - 24:00', label: 'Đợt 3' },
+                ].map(session => {
+                  const isCurrentLive = currentSessionSlot === session.slot;
+                  const isSelected = activeSessionSlot === session.slot;
+                  return (
+                    <button
+                      key={session.slot}
+                      type="button"
+                      onClick={() => setSelectedSessionIdx(session.slot)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer border ${
+                        isSelected
+                          ? 'bg-rose-600 text-white border-rose-500 shadow-lg shadow-rose-950/40'
+                          : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white border-zinc-800'
+                      }`}
+                    >
+                      <span>{session.label}: {session.time}</span>
+                      {isCurrentLive ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded-full font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          Đang diễn ra
+                        </span>
+                      ) : (
+                        <span className="text-[10px] opacity-60">Sắp tới</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Manual Batch Switcher Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedSessionIdx((activeSessionSlot + 1) % totalSaleBatches)}
+                className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 font-semibold cursor-pointer bg-zinc-900 hover:bg-zinc-850 px-3 py-1.5 rounded-lg border border-zinc-800 transition-colors"
+                title="Xem các sản phẩm sale đợt khác"
+              >
+                <span>Xem sản phẩm sale khác</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {flashSaleProducts.slice(0, 4).map(prod => {
+              {displayedFlashSaleProducts.map(prod => {
                 const discountPercent =
                   prod.salePrice && prod.salePrice < prod.price
                     ? Math.round(((prod.price - prod.salePrice) / prod.price) * 100)
@@ -324,12 +480,26 @@ export const HomePage: React.FC = () => {
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleQuickAdd(prod)}
-                        className="w-full mt-4 py-2.5 bg-zinc-800 hover:bg-white hover:text-black text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                      >
-                        <ShoppingBag className="w-3.5 h-3.5" /> Thêm Vào Giỏ
-                      </button>
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        <button
+                          type="button"
+                          onClick={(e) => handleQuickAdd(prod, e)}
+                          className="py-2.5 px-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                          title="Thêm vào giỏ hàng"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5 text-zinc-300" />
+                          <span className="truncate">Thêm Giỏ</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleQuickBuy(prod, e)}
+                          className="py-2.5 px-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+                          title="Mua ngay lập tức"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300" />
+                          <span className="truncate">Mua Ngay</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -389,10 +559,12 @@ export const HomePage: React.FC = () => {
                       {prod.name}
                     </h3>
                   </Link>
-                  <div className="flex items-center gap-1 mt-1.5 text-amber-400 text-xs">
+                  <div className="flex items-center gap-1.5 mt-1.5 text-amber-500 text-xs">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span className="font-semibold text-zinc-700 text-xs">{prod.rating}</span>
-                    <span className="text-zinc-400 text-[11px]">({prod.soldCount} đã bán)</span>
+                    <span className="font-bold text-zinc-800 text-xs">{prod.rating || 5.0}</span>
+                    <span className="text-zinc-400 text-[11px]">({prod.reviewCount || 1} đánh giá)</span>
+                    <span className="text-zinc-300">•</span>
+                    <span className="text-zinc-400 text-[11px]">{prod.soldCount} đã bán</span>
                   </div>
 
                   {/* Stock status badge */}
@@ -421,17 +593,40 @@ export const HomePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">
-                  <div className="font-mono font-bold text-sm text-zinc-950">
-                    {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
+                <div className="pt-3 mt-2 border-t border-zinc-100 space-y-2">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <p className="font-mono font-bold text-xs sm:text-sm text-zinc-950">
+                        {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
+                      </p>
+                      {prod.salePrice && prod.salePrice < prod.price && (
+                        <p className="font-mono text-[10px] text-zinc-400 line-through">
+                          {prod.price.toLocaleString('vi-VN')}đ
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={() => handleQuickAdd(prod)}
-                    className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-950 hover:text-white text-zinc-800 transition-colors"
-                    title="Thêm nhanh vào giỏ"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                  </button>
+
+                  <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                    <button
+                      type="button"
+                      onClick={(e) => handleQuickAdd(prod, e)}
+                      className="py-2 px-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-2xs cursor-pointer"
+                      title="Thêm vào giỏ hàng"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
+                      <span className="truncate">Thêm Giỏ</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleQuickBuy(prod, e)}
+                      className="py-2 px-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm cursor-pointer"
+                      title="Mua ngay lập tức"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                      <span className="truncate">Mua Ngay</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -541,6 +736,13 @@ export const HomePage: React.FC = () => {
                             </h3>
                           </Link>
 
+                          {/* Đánh giá số sao */}
+                          <div className="flex items-center gap-1 text-amber-500 text-[11px] pt-0.5">
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            <span className="font-bold text-zinc-800">{prod.rating || 5.0}</span>
+                            <span className="text-zinc-400 text-[10px]">({prod.reviewCount || 1} đánh giá)</span>
+                          </div>
+
                           {/* Số lượng tồn kho còn bao nhiêu */}
                           <div className="pt-0.5">
                             <span
@@ -562,28 +764,44 @@ export const HomePage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="pt-3 mt-2 border-t border-zinc-100 flex items-center justify-between">
-                          <div>
-                            <p
-                              className={`font-mono font-bold text-xs sm:text-sm ${
-                                isSale ? 'text-rose-600' : 'text-zinc-950'
-                              }`}
-                            >
-                              {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
-                            </p>
-                            {isSale && (
-                              <p className="font-mono text-[10px] text-zinc-400 line-through">
-                                {prod.price.toLocaleString('vi-VN')}đ
+                        <div className="pt-3 mt-2 border-t border-zinc-100 space-y-2">
+                          <div className="flex items-baseline justify-between">
+                            <div>
+                              <p
+                                className={`font-mono font-bold text-xs sm:text-sm ${
+                                  isSale ? 'text-rose-600' : 'text-zinc-950'
+                                }`}
+                              >
+                                {(prod.salePrice || prod.price).toLocaleString('vi-VN')}đ
                               </p>
-                            )}
+                              {isSale && (
+                                <p className="font-mono text-[10px] text-zinc-400 line-through">
+                                  {prod.price.toLocaleString('vi-VN')}đ
+                                </p>
+                              )}
+                            </div>
                           </div>
-                          <button
-                            onClick={() => handleQuickAdd(prod)}
-                            className="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-950 hover:text-white text-zinc-800 transition-colors"
-                            title="Thêm nhanh vào giỏ"
-                          >
-                            <ShoppingBag className="w-4 h-4" />
-                          </button>
+
+                          <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickAdd(prod, e)}
+                              className="py-2 px-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-900 text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-2xs"
+                              title="Thêm vào giỏ hàng"
+                            >
+                              <ShoppingBag className="w-3.5 h-3.5 text-zinc-700 shrink-0" />
+                              <span className="truncate">Thêm Giỏ</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleQuickBuy(prod, e)}
+                              className="py-2 px-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-[11px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm"
+                              title="Mua ngay lập tức"
+                            >
+                              <Zap className="w-3.5 h-3.5 text-amber-300 fill-amber-300 shrink-0" />
+                              <span className="truncate">Mua Ngay</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>

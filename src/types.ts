@@ -32,6 +32,7 @@ export interface ProductVariant {
   stock: number;
   price?: number;
   sku: string;
+  image?: string;
 }
 
 export interface Product {
@@ -46,6 +47,7 @@ export interface Product {
   description: string;
   details?: string[];
   images: string[];
+  colorImages?: Record<string, string[]>;
   variants: ProductVariant[];
   rating: number;
   reviewCount: number;
@@ -76,7 +78,21 @@ export interface CartItem {
 
 export type PaymentMethod = 'COD' | 'BANK_TRANSFER' | 'VNPAY' | 'MOMO';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED';
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED' | 'RETURN_REQUESTED';
+
+export interface OrderReturnRequest {
+  type: 'EXCHANGE_SIZE' | 'REFUND';
+  reason: string;
+  targetSize?: string;
+  bankInfo?: {
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+  };
+  note?: string;
+  createdAt: string;
+  status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
+}
 
 export interface OrderItem {
   id: string;
@@ -103,6 +119,8 @@ export interface Order {
   district: string;
   ward: string;
   note?: string;
+  cancelReason?: string;
+  returnRequest?: OrderReturnRequest;
   subtotal: number;
   shippingFee: number;
   discountAmount: number;
@@ -156,6 +174,13 @@ export interface Review {
   images?: string[];
   status: 'APPROVED' | 'HIDDEN';
   createdAt: string;
+  variantInfo?: string;
+  fitFeedback?: string;
+  qualityFeedback?: string;
+  matchDescription?: string;
+  sellerReply?: string;
+  sellerReplyDate?: string;
+  helpfulCount?: number;
 }
 
 export interface StoreSettings {

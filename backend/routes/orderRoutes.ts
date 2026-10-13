@@ -32,27 +32,36 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
     // Validate item stock & prices
     let subtotal = 0;
     const validatedItems = [];
+    const requestedStock = new Map<string, number>();
 
     for (const item of items) {
-      const prod = db.findProductById(item.productId);
-      if (!prod) {
-        return res.status(400).json({ success: false, message: `Sản phẩm ${item.productName || item.productId} không tồn tại` });
+      if (!Number.isSafeInteger(item.quantity) || item.quantity <= 0) {
+        return res.status(400).json({ success: false, message: 'Số lượng sản phẩm phải là số nguyên dương' });
+      }
+      let prod = db.findProductById(item.productId);
+      if (!prod && item.productName) {
+        prod = (db as any).findProductByName?.(item.productName);
       }
 
-      if (item.variantId) {
-        const variant = prod.variants.find(v => v.id === item.variantId);
-        if (!variant) {
-          return res.status(400).json({ success: false, message: `Phân loại ${item.size} - ${item.color} của sản phẩm ${prod.name} không tồn tại` });
-        }
-        if (variant.stock < item.quantity) {
-          return res.status(400).json({
-            success: false,
-            message: `Sản phẩm ${prod.name} (${variant.size}, ${variant.color}) chỉ còn ${variant.stock} chiếc trong kho, không đủ số lượng đặt (${item.quantity})`,
-          });
-        }
+      if (!prod || prod.status !== 'ACTIVE') {
+        return res.status(400).json({ success: false, message: 'Sản phẩm không tồn tại hoặc đã ngừng bán. Vui lòng cập nhật giỏ hàng.' });
+      }
+      let variant = item.variantId ? prod.variants?.find((v: any) => v.id === item.variantId) : undefined;
+      if (!variant && !item.variantId && prod.variants && prod.variants.length > 0) {
+        variant = prod.variants.find((v: any) => v.size === item.size && v.color === item.color);
       }
 
-      const unitPrice = prod.salePrice || prod.price;
+      if (!variant) {
+        return res.status(400).json({ success: false, message: 'Size hoặc màu sản phẩm không hợp lệ' });
+      }
+      const stockKey = `${prod.id}:${variant.id}`;
+      const quantityRequested = (requestedStock.get(stockKey) || 0) + item.quantity;
+      if (variant.stock < quantityRequested) {
+        return res.status(400).json({ success: false, message: `${prod.name} chỉ còn ${variant.stock} sản phẩm cho size và màu đã chọn` });
+      }
+      requestedStock.set(stockKey, quantityRequested);
+
+      const unitPrice = variant.price || prod.salePrice || prod.price;
       const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
 
@@ -60,14 +69,14 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
         id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         orderId: '',
         productId: prod.id,
-        variantId: item.variantId,
+        variantId: variant?.id || item.variantId || 'v-default',
         productName: prod.name,
-        size: item.size || 'FreeSize',
-        color: item.color || 'Tiêu chuẩn',
+        size: variant.size,
+        color: variant.color,
         price: unitPrice,
         quantity: item.quantity,
         total: itemTotal,
-        imageUrl: prod.images[0] || '',
+        imageUrl: item.imageUrl || item.image || (prod.images && prod.images[0]) || '',
       });
     }
 
@@ -78,7 +87,11 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
     // Coupon calculation
     let discountAmount = 0;
     if (couponCode) {
-      const coupon = db.findCouponByCode(couponCode);
+      const coupon = db.findCouponByCode(couponCode.trim());
+      const today = new Date().toISOString().split('T')[0];
+      if (!coupon || coupon.startDate > today || coupon.endDate < today || coupon.usedCount >= coupon.usageLimit || subtotal < coupon.minOrderValue) {
+        return res.status(400).json({ success: false, message: 'Mã giảm giá không còn hợp lệ hoặc đơn hàng chưa đủ điều kiện' });
+      }
       if (coupon && subtotal >= coupon.minOrderValue) {
         if (coupon.discountType === 'PERCENT') {
           discountAmount = Math.round((subtotal * coupon.discountValue) / 100);
@@ -151,6 +164,80 @@ router.get('/:id', optionalAuth, (req: AuthRequest, res: Response) => {
     return res.json({ success: true, data: order });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'Lỗi tải chi tiết đơn hàng', error: error.message });
+  }
+});
+
+// PUT /api/orders/:id/cancel (Customer cancel order)
+router.put('/:id/cancel', optionalAuth, (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const order = db.findOrderById(id) || db.listOrders().find(o => o.orderCode === id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    }
+
+    // Only allow cancelling if order is in PENDING or CONFIRMED state
+    if (order.orderStatus === 'SHIPPING' || order.orderStatus === 'DELIVERED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Đơn hàng đang trên đường giao hoặc đã giao thành công, không thể tự hủy. Vui lòng liên hệ hotline.',
+      });
+    }
+
+    if (order.orderStatus === 'CANCELLED') {
+      return res.status(400).json({ success: false, message: 'Đơn hàng này đã bị hủy trước đó' });
+    }
+
+    const cancelReasonText = reason && reason.trim() ? reason.trim() : 'Khách hàng yêu cầu hủy đơn';
+    const updated = db.cancelOrder(order.id, cancelReasonText);
+
+    return res.json({
+      success: true,
+      message: 'Hủy đơn hàng thành công',
+      data: updated,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi hủy đơn hàng', error: error.message });
+  }
+});
+
+// POST /api/orders/:id/return (Customer request return or exchange size)
+router.post('/:id/return', optionalAuth, (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type, reason, targetSize, bankInfo, note } = req.body;
+
+    const order = db.findOrderById(id) || db.listOrders().find(o => o.orderCode === id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+    }
+
+    if (order.orderStatus === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Đơn hàng này đã bị hủy, không thể yêu cầu trả hàng hoặc đổi size.',
+      });
+    }
+
+    const updated = db.requestReturnOrder(order.id, {
+      type: type || 'EXCHANGE_SIZE',
+      reason: reason || 'Mang không vừa size (quá chật / quá rộng)',
+      targetSize: targetSize || undefined,
+      bankInfo: bankInfo || undefined,
+      note: note ? note.trim() : undefined,
+    });
+
+    return res.json({
+      success: true,
+      message: type === 'EXCHANGE_SIZE'
+        ? 'Gửi yêu cầu đổi size thành công! Shipper sẽ liên hệ mang size mới đổi tận nơi cho bạn.'
+        : 'Gửi yêu cầu trả hàng & hoàn tiền thành công! CSKH sẽ liên hệ hỗ trợ thu hồi và hoàn tiền.',
+      data: updated,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, message: 'Lỗi gửi yêu cầu trả hàng / đổi size', error: error.message });
   }
 });
 

@@ -3,9 +3,9 @@
 > **Đồ Án Môn Học / Project:** Hệ Thống Website Thương Mại Điện Tử & Quản Trị Bán Hàng Thời Trang Full-stack  
 > **Sinh viên thực hiện:** Phan Nhất Nguyên  
 > **Lớp:** ST23B  
-> **Email:** nguyen106436@donga.edu.vn  
+> **Email:** phannguyen27082005@gmail.com  
 > **Trường:** Đại Học Đông Á (Dong A University)  
-> **Repository:** [https://github.com/nguyen106436/Devops1](https://github.com/nguyen106436/Devops1)
+> **Repository:** [https://github.com/phannguyen27082005-crypto/devops1](https://github.com/phannguyen27082005-crypto/devops1)
 
 ---
 
@@ -38,7 +38,7 @@
 
 | Phân hệ | Tài khoản Email | Mật khẩu | Quyền hạn |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên (Admin)** | **`nguyen106436@donga.edu.vn`** | **`Admin@123456`** | Toàn quyền quản trị Dashboard, Sản phẩm, Đơn hàng, Doanh thu, Cài đặt |
+| **Quản trị viên (Admin)** | **`phannguyen27082005@gmail.com`** | **`Admin@123456`** | Toàn quyền quản trị Dashboard, Sản phẩm, Đơn hàng, Doanh thu, Cài đặt |
 | **Khách hàng (Customer)** | **`khachhang@example.com`** | **`Customer@123456`** | Mua hàng, Giỏ hàng, Đặt đơn COD/QR, Xem lịch sử mua sắm |
 
 ---
@@ -53,7 +53,7 @@
 
 1. **Clone repository về máy:**
    ```bash
-   git clone https://github.com/nguyen106436/Devops1.git
+   git clone https://github.com/phannguyen27082005-crypto/devops1.git
    cd Devops1
    ```
 
