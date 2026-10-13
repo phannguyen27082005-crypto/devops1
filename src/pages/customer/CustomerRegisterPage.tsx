@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, User, Phone, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
@@ -7,6 +7,8 @@ import { api } from '../../services/api';
 
 export const CustomerRegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as any)?.from;
   const { login } = useAuth();
   const { success, error } = useNotification();
 
@@ -34,7 +36,7 @@ export const CustomerRegisterPage: React.FC = () => {
 
       if (res.success) {
         success('Đăng ký tài khoản thành công! Vui lòng đăng nhập để tiếp tục.');
-        navigate('/login', { state: { email: email.trim() }, replace: true });
+        navigate('/login', { state: { email: email.trim(), from }, replace: true });
       } else {
         error(res.message || 'Lỗi đăng ký');
       }
@@ -137,7 +139,7 @@ export const CustomerRegisterPage: React.FC = () => {
 
         <div className="text-center pt-2 text-xs text-zinc-500 border-t border-zinc-100">
           Đã có tài khoản?{' '}
-          <Link to="/login" className="font-bold text-zinc-950 underline hover:text-zinc-700">
+          <Link to="/login" state={{ from }} className="font-bold text-zinc-950 underline hover:text-zinc-700">
             Đăng nhập ngay
           </Link>
         </div>

@@ -21,7 +21,7 @@ export const CustomerLoginPage: React.FC = () => {
     }
   }, [location.state]);
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  const from = (location.state as any)?.from;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +35,11 @@ export const CustomerLoginPage: React.FC = () => {
       if (res.success && user && token) {
         login(token, user);
         success(`Chào mừng bạn trở lại, ${user.name}!`);
-        navigate(from, { replace: true });
+        navigate(from ? {
+          pathname: from.pathname,
+          search: from.search || '',
+          hash: from.hash || '',
+        } : '/', { replace: true, state: from?.state });
       } else {
         error(res.message || 'Đăng nhập không thành công');
       }
@@ -121,7 +125,7 @@ export const CustomerLoginPage: React.FC = () => {
 
         <div className="text-center pt-2 text-xs text-zinc-500 border-t border-zinc-100">
           Chưa có tài khoản thành viên?{' '}
-          <Link to="/register" className="font-bold text-zinc-950 underline hover:text-zinc-700">
+          <Link to="/register" state={{ from }} className="font-bold text-zinc-950 underline hover:text-zinc-700">
             Đăng ký tài khoản mới
           </Link>
         </div>

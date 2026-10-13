@@ -432,12 +432,15 @@ export const CheckoutPage: React.FC = () => {
 
   const selectedItemsState = (location.state as any)?.selectedItems as CartItem[] | undefined;
   const initialItems = useMemo(() => {
+    if ((location.state as any)?.resumeCheckout && selectedItemsState) {
+      return selectedItemsState;
+    }
     if (selectedItemsState && selectedItemsState.length > 0) {
       const selectedIds = new Set(selectedItemsState.map(item => item.id));
       return allCartItems.filter(item => selectedIds.has(item.id));
     }
     return allCartItems;
-  }, [selectedItemsState, allCartItems]);
+  }, [selectedItemsState, allCartItems, location.state]);
 
   const [checkoutItems, setCheckoutItems] = useState<CartItem[]>(initialItems);
   const [productDetailsMap, setProductDetailsMap] = useState<Record<string, any>>({});
@@ -792,7 +795,14 @@ export const CheckoutPage: React.FC = () => {
 
     if (!isAuthenticated) {
       error('Vui lòng đăng nhập để đặt hàng bằng tài khoản của bạn');
-      navigate('/login', { state: { from: { pathname: '/checkout' } } });
+      navigate('/login', {
+        state: {
+          from: {
+            pathname: '/checkout',
+            state: { selectedItems: checkoutItems, resumeCheckout: true },
+          },
+        },
+      });
       return;
     }
 
