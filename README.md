@@ -157,7 +157,7 @@ Chạy cập nhật: `npm run db:sync`. Trong SSMS, kết nối server trên r�
 
 Backend cần SQL hoạt động để khởi động. Bảng `application_state` là nguồn dữ liệu chính và được khởi tạo từ JSON một lần khi chưa có dữ liệu. Các bảng quan hệ được cập nhật sau khi lưu; thay đổi trực tiếp các bảng này trong SSMS không tự sửa trạng thái ứng dụng. Thiết kế hiện dùng một tiến trình backend, chưa hỗ trợ nhiều replica ghi đồng thời.
 
-Chi tiết đơn hàng chỉ dành cho chủ đơn/admin. Đơn khách không đăng nhập nhận token chỉ đọc riêng cho đơn đó, được trình duyệt giữ trong phiên; không công khai đơn hàng bằng mã đoán được.
+Đặt hàng bắt buộc đăng nhập. Đơn hàng gắn với ID trong token, không nhận chủ đơn từ trình duyệt. Chi tiết đơn hàng chỉ dành cho chủ đơn/admin; giỏ hàng SQL riêng theo tài khoản.
 
 ```
 ├── backend/                   # Mã nguồn Express Backend

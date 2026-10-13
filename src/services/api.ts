@@ -118,17 +118,10 @@ export const api = {
 
   // Orders
   orders: {
-    create: async (orderData: any) => {
-      const result = await fetchWithAuth('/api/orders', { method: 'POST', body: JSON.stringify(orderData) });
-      if (result.accessToken && result.data) {
-        sessionStorage.setItem(`order_access:${result.data.id}`, result.accessToken);
-        sessionStorage.setItem(`order_access:${result.data.orderCode}`, result.accessToken);
-      }
-      return result;
-    },
+    create: (orderData: any) => fetchWithAuth('/api/orders', { method: 'POST', body: JSON.stringify(orderData) }),
     getMyOrders: () => fetchWithAuth('/api/orders'),
-    getById: (id: string) => fetchWithAuth(`/api/orders/${id}`, { headers: { 'x-order-token': sessionStorage.getItem(`order_access:${id}`) || '' } }),
-    getByCode: (orderCode: string) => fetchWithAuth(`/api/orders/${orderCode}`, { headers: { 'x-order-token': sessionStorage.getItem(`order_access:${orderCode}`) || '' } }),
+    getById: (id: string) => fetchWithAuth(`/api/orders/${id}`),
+    getByCode: (orderCode: string) => fetchWithAuth(`/api/orders/${orderCode}`),
     cancelOrder: (id: string, reason: string) =>
       fetchWithAuth(`/api/orders/${id}/cancel`, {
         method: 'PUT',

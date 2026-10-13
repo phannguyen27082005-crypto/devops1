@@ -21,7 +21,7 @@ const express = require('express');
       build.onResolve({ filter: /\/middleware\/auth\.js$/ }, () => ({ path: 'auth', namespace: 'stub' }));
       build.onLoad({ filter: /.*/, namespace: 'stub' }, args => ({ contents: args.path === 'db'
         ? 'export const db = globalThis.testDb;'
-        : 'export const JWT_SECRET="isolated-test-secret"; export const optionalAuth = (_req,_res,next)=>next(); export const authenticateToken=optionalAuth;' }));
+        : 'export const authenticateToken = (req,_res,next)=>{req.user={id:"test-user",role:"CUSTOMER"};next();};' }));
     }}] });
   const mod = { exports: {} };
   vm.runInNewContext(result.outputFiles[0].text, { require, module: mod, exports: mod.exports,
@@ -38,11 +38,10 @@ const express = require('express');
     const item = { productId: 'p', variantId: 'v', quantity: 1, price: 1 };
     const placed = await post([item]);
     assert.equal(placed.status, 201);
-    const placement = await placed.json();
+    await placed.json();
     const orderUrl = `http://127.0.0.1:${server.address().port}/orders/order-test`;
-    assert.equal((await fetch(orderUrl)).status, 404);
-    assert.equal((await fetch(orderUrl, { headers: { 'x-order-token': placement.accessToken } })).status, 200);
-    assert.equal((await fetch(orderUrl, { headers: { 'x-order-token': 'invalid' } })).status, 404);
+    assert.equal((await fetch(orderUrl)).status, 200);
+    assert.equal(created.userId, 'test-user');
     assert.equal(created.subtotal, 329000); // Client price cannot override catalog price.
     assert.equal(created.totalAmount, 359000);
     for (const quantity of [-1, 0, 1.5, 6]) assert.equal((await post([{ ...item, quantity }])).status, 400);

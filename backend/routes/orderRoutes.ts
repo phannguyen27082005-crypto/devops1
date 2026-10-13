@@ -1,13 +1,11 @@
 import { Router, Response } from 'express';
 import { db } from '../db/database.js';
-import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '../middleware/auth.js';
-import { authenticateToken, optionalAuth, AuthRequest } from '../middleware/auth.js';
+import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
 // POST /api/orders (Create order)
-router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
+router.post('/', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const {
       customerName,
@@ -137,7 +135,6 @@ router.post('/', optionalAuth, (req: AuthRequest, res: Response) => {
       success: true,
       message: 'Đặt hàng thành công',
       data: newOrder,
-      accessToken: !req.user ? jwt.sign({ orderId: newOrder.id, scope: 'order-read' }, JWT_SECRET, { expiresIn: '30d' }) : undefined,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: 'Lỗi xử lý đơn hàng', error: error.message });
@@ -155,20 +152,12 @@ router.get('/', authenticateToken, (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/orders/:id (Order details)
-router.get('/:id', optionalAuth, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticateToken, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const order = db.findOrderById(id);
 
-    let guestAccess = false;
-    const orderToken = req.headers['x-order-token'];
-    if (order && typeof orderToken === 'string') {
-      try {
-        const decoded = jwt.verify(orderToken, JWT_SECRET) as jwt.JwtPayload;
-        guestAccess = decoded.scope === 'order-read' && decoded.orderId === order.id;
-      } catch { /* Invalid guest token. */ }
-    }
-    if (!order || (!guestAccess && (!req.user || (order.userId !== req.user.id && req.user.role !== 'ADMIN')))) {
+    if (!order || (order.userId !== req.user!.id && req.user!.role !== 'ADMIN')) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
     }
 

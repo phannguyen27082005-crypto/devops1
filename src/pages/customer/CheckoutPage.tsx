@@ -790,6 +790,12 @@ export const CheckoutPage: React.FC = () => {
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!isAuthenticated) {
+      error('Vui lòng đăng nhập để đặt hàng bằng tài khoản của bạn');
+      navigate('/login', { state: { from: { pathname: '/checkout' } } });
+      return;
+    }
+
     if (couponLoading || (couponCode && validatedDiscount.subtotal !== subtotal)) {
       error('Vui lòng chờ kiểm tra mã giảm giá');
       return;
@@ -2104,7 +2110,7 @@ export const CheckoutPage: React.FC = () => {
               disabled={submitting || couponLoading || Boolean(couponCode && validatedDiscount.subtotal !== subtotal)}
               className="w-full py-4 bg-zinc-950 hover:bg-zinc-800 text-white text-xs uppercase tracking-widest font-bold rounded-xl transition-all shadow-xl disabled:opacity-50"
             >
-              {submitting ? 'Đang Xử Lý Đơn Hàng...' : 'Xác Nhận Đặt Hàng Ngay'}
+              {submitting ? 'Đang Xử Lý Đơn Hàng...' : !isAuthenticated ? 'Đăng Nhập Để Đặt Hàng' : 'Xác Nhận Đặt Hàng Ngay'}
             </button>
           </div>
         </div>
